@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "slug": "ridesafe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./src/assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ridesafe.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "RideSafe uses your location to monitor your ride and find nearby hospitals.",
+        "NSLocationAlwaysUsageDescription": "RideSafe uses your location in the background to detect crashes and send emergency alerts.",
+        "NSMotionUsageDescription": "RideSafe uses motion sensors to detect potential crashes during your ride."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "package": "com.ridesafe.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "FOREGROUND_SERVICE"
+      ]
+    },
+    "web": {
+      "favicon": "./src/assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0F172A",
+          "image": "./src/assets/splash.png",
+          "imageWidth": 200
+        }
+      ]
+    ]
+  }
+}
