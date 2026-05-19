@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
+    "start": "expo start --clear --lan",
+    "android": "expo start --clear --lan --android",
+    "tunnel": "expo start --clear --tunnel",
+    "android:tunnel": "expo start --clear --tunnel --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint src --ext .ts,.tsx --fix",
