@@ -136,17 +136,17 @@ function TabItem({
 
   const scale        = useRef(new Animated.Value(1)).current;
   const labelOpacity = useRef(new Animated.Value(isActive ? 1 : 0)).current;
-  const pillWidth    = useRef(new Animated.Value(isActive ? 28 : 0)).current;
+  const pillScale    = useRef(new Animated.Value(isActive ? 1 : 0)).current;
   const pillOpacity  = useRef(new Animated.Value(isActive ? 1 : 0)).current;
 
   // Animate when isActive changes
   useEffect(() => {
     Animated.parallel([
       Animated.timing(labelOpacity, { toValue: isActive ? 1 : 0, duration: 180, useNativeDriver: true }),
-      Animated.spring(pillWidth,    { toValue: isActive ? 28 : 0, useNativeDriver: false, speed: 20, bounciness: 4 }),
+      Animated.spring(pillScale,    { toValue: isActive ? 1 : 0, useNativeDriver: true, speed: 20, bounciness: 4 }),
       Animated.timing(pillOpacity,  { toValue: isActive ? 1 : 0, duration: 200, useNativeDriver: true }),
     ]).start();
-  }, [isActive, labelOpacity, pillWidth, pillOpacity]);
+  }, [isActive, labelOpacity, pillScale, pillOpacity]);
 
   function handlePressIn(): void {
     Animated.spring(scale, { toValue: 0.84, useNativeDriver: true, speed: 60, bounciness: 0 }).start();
@@ -187,8 +187,8 @@ function TabItem({
             styles.activePill,
             {
               backgroundColor: colors.tabBarActive,
-              width: pillWidth,
               opacity: pillOpacity,
+              transform: [{ scaleX: pillScale }],
             },
           ]}
         />
@@ -328,6 +328,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   activePill: {
+    width: 28,
     height: 3,
     borderRadius: radius.full,
     marginTop: 1,
