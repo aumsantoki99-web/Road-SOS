@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAppState } from '../../context/AppStateContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { useStorage } from '../../hooks/useStorage';
 import { StorageService } from '../../storage/StorageService';
 
@@ -38,7 +39,7 @@ import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 import { STORAGE_KEYS, APP_VERSION, DEFAULT_PREFERENCES } from '../../constants';
-import type { ThemeMode, CrashSensitivity, UserPreferences } from '../../types';
+import type { ThemeMode, CrashSensitivity, UserPreferences, AppLanguage } from '../../types';
 import type { SettingsScreenProps } from '../../navigation/types';
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -113,6 +114,7 @@ const THEME_OPTIONS: ThemeOptionDef[] = [
 
 function ThemePicker(): React.JSX.Element {
   const { colors, themeMode, setThemeMode, isNight } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View>
@@ -169,7 +171,7 @@ function ThemePicker(): React.JSX.Element {
         <View style={[styles.nightPill, { backgroundColor: '#1A0505', borderColor: '#3D0A0A' }]}>
           <Ionicons name="moon" size={13} color="#FF8080" />
           <Text style={[textStyles.caption, { color: '#FF8080', marginLeft: spacing[2] }]}>
-            Night mode active · Red-black palette until 06:00
+            {t('settings.nightModeActive')}
           </Text>
         </View>
       )}
@@ -187,11 +189,12 @@ function SensitivityControl({
   onChange: (v: CrashSensitivity) => void;
 }): React.JSX.Element {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const options: { value: CrashSensitivity; label: string; color: string }[] = [
-    { value: 'low',    label: 'Low',    color: colors.safe },
-    { value: 'medium', label: 'Medium', color: colors.accent },
-    { value: 'high',   label: 'High',   color: colors.emergency },
+    { value: 'low',    label: t('settings.low'),    color: colors.safe },
+    { value: 'medium', label: t('settings.medium'), color: colors.accent },
+    { value: 'high',   label: t('settings.high'),   color: colors.emergency },
   ];
 
   return (
@@ -227,6 +230,7 @@ function SensitivityControl({
 export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
   const { colors } = useTheme();
   const { updatePreferences } = useAppState();
+  const { t, language, setLanguage } = useTranslation();
   const [isResetting, setResetting] = useState(false);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -244,6 +248,12 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
     DEFAULT_PREFERENCES,
   );
 
+  const languageOptions: { value: AppLanguage; label: string }[] = [
+    { value: 'en', label: t('settings.languageEnglish') },
+    { value: 'hi', label: t('settings.languageHindi') },
+    { value: 'gu', label: t('settings.languageGujarati') },
+  ];
+
   async function updatePref<K extends keyof UserPreferences>(
     key: K,
     value: UserPreferences[K],
@@ -255,20 +265,21 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
 
   function handleReset(): void {
     Alert.alert(
-      'Reset App Data',
-      'This will delete all contacts, ride history, and preferences permanently.',
+      t('settings.resetAlertTitle'),
+      t('settings.resetAlertBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('settings.cancel'), style: 'cancel' },
         {
-          text: 'Reset Everything',
+          text: t('settings.resetEverything'),
           style: 'destructive',
           onPress: async () => {
             setResetting(true);
             await StorageService.clear();
             await savePrefs(DEFAULT_PREFERENCES);
             updatePreferences(DEFAULT_PREFERENCES);
+            await setLanguage(DEFAULT_PREFERENCES.language);
             setResetting(false);
-            Alert.alert('Done', 'All app data cleared.');
+            Alert.alert(t('settings.done'), t('settings.resetDone'));
           },
         },
       ],
@@ -279,7 +290,7 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       {/* Page header */}
       <View style={styles.pageHeader}>
-        <Text style={[textStyles.displaySmall, { color: colors.textPrimary }]}>Settings</Text>
+        <Text style={[textStyles.displaySmall, { color: colors.textPrimary }]}>{t('settings.title')}</Text>
         <View style={[styles.versionBadge, { backgroundColor: colors.surfaceSecondary }]}>
           <Text style={[textStyles.caption, { color: colors.textTertiary }]}>v{APP_VERSION}</Text>
         </View>
@@ -294,31 +305,56 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
           {/* ── Appearance ────────────────────────────────────────────── */}
-          <SettingsSection title="APPEARANCE" topSpacing={0}>
+          <SettingsSection title={t('settings.appearance')} topSpacing={0}>
             <Text style={[textStyles.bodySmall, { color: colors.textTertiary, marginBottom: spacing[4] }]}>
-              Auto mode activates a high-contrast red-black night palette after 19:00 to reduce glare while riding.
+              {t('settings.themeDescription')}
             </Text>
             <ThemePicker />
           </SettingsSection>
 
+          <SettingsSection title={t('settings.language')}>
+            <SettingRow
+              label={t('settings.language')}
+              description={t('settings.languageDescription')}
+              icon="language-outline"
+              iconColor={colors.info}
+              control="value"
+              valueText={languageOptions.find((option) => option.value === language)?.label}
+              onPress={() => {
+                Alert.alert(
+                  t('settings.language'),
+                  t('settings.languageDescription'),
+                  languageOptions.map((option) => ({
+                    text: option.label,
+                    onPress: () => {
+                      void updatePref('language', option.value);
+                      void setLanguage(option.value);
+                    },
+                  })),
+                );
+              }}
+              showDivider={false}
+            />
+          </SettingsSection>
+
           {/* ── Safety ────────────────────────────────────────────────── */}
-          <SettingsSection title="SAFETY">
+          <SettingsSection title={t('settings.safety')}>
             <Text style={[textStyles.labelMedium, { color: colors.textSecondary, marginBottom: spacing[3] }]}>
-              Crash Detection Sensitivity
+              {t('settings.crashSensitivity')}
             </Text>
             <SensitivityControl
               value={prefs.crashSensitivity}
               onChange={(v) => void updatePref('crashSensitivity', v)}
             />
             <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: spacing[2], marginBottom: spacing[5] }]}>
-              Higher sensitivity detects lighter impacts. Recommended: Medium.
+              {t('settings.crashSensitivityHint')}
             </Text>
 
             <View style={[styles.internalDivider, { backgroundColor: colors.divider }]} />
 
             <SettingRow
-              label="SOS Auto-Send Delay"
-              description="Seconds before alert sends automatically"
+              label={t('settings.sosDelay')}
+              description={t('settings.sosDelayDescription')}
               icon="timer-outline"
               iconColor={colors.emergency}
               control="value"
@@ -327,8 +363,8 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
               showDivider
             />
             <SettingRow
-              label="Auto-Share Location"
-              description="Include GPS coordinates in emergency alerts"
+              label={t('settings.autoShareLocation')}
+              description={t('settings.autoShareLocationDescription')}
               icon="location-outline"
               iconColor={colors.safe}
               control="toggle"
@@ -339,10 +375,10 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
           </SettingsSection>
 
           {/* ── Emergency preferences ─────────────────────────────────── */}
-          <SettingsSection title="EMERGENCY">
+          <SettingsSection title={t('settings.emergency')}>
             <SettingRow
-              label="Ride Auto-Start"
-              description="Begin monitoring automatically when motion is detected"
+              label={t('settings.rideAutoStart')}
+              description={t('settings.rideAutoStartDescription')}
               icon="speedometer-outline"
               iconColor={colors.accent}
               control="toggle"
@@ -351,8 +387,8 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
               showDivider
             />
             <SettingRow
-              label="Offline Emergency Mode"
-              description="Queue alerts locally when internet is unavailable"
+              label={t('settings.offlineEmergencyMode')}
+              description={t('settings.offlineEmergencyModeDescription')}
               icon="cloud-offline-outline"
               iconColor={colors.info}
               control="toggle"
@@ -363,10 +399,10 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
           </SettingsSection>
 
           {/* ── Notifications ─────────────────────────────────────────── */}
-          <SettingsSection title="NOTIFICATIONS">
+          <SettingsSection title={t('settings.notifications')}>
             <SettingRow
-              label="Push Notifications"
-              description="Ride reminders and safety alerts"
+              label={t('settings.pushNotifications')}
+              description={t('settings.pushNotificationsDescription')}
               icon="notifications-outline"
               iconColor="#8B5CF6"
               control="toggle"
@@ -375,8 +411,8 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
               showDivider
             />
             <SettingRow
-              label="Open Device Settings"
-              description="Manage notification permissions"
+              label={t('settings.openDeviceSettings')}
+              description={t('settings.openDeviceSettingsDescription')}
               icon="settings-outline"
               iconColor={colors.textTertiary}
               control="chevron"
@@ -386,9 +422,9 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
           </SettingsSection>
 
           {/* ── About ─────────────────────────────────────────────────── */}
-          <SettingsSection title="ABOUT">
+          <SettingsSection title={t('settings.about')}>
             <SettingRow
-              label="App Version"
+              label={t('settings.appVersion')}
               icon="information-circle-outline"
               iconColor={colors.info}
               control="value"
@@ -396,7 +432,7 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
               showDivider
             />
             <SettingRow
-              label="Expo SDK"
+              label={t('settings.expoSdk')}
               icon="layers-outline"
               iconColor={colors.accent}
               control="value"
@@ -404,8 +440,8 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
               showDivider
             />
             <SettingRow
-              label="Architecture"
-              description="Offline-first · TypeScript strict"
+              label={t('settings.architecture')}
+              description={t('settings.architectureDescription')}
               icon="construct-outline"
               iconColor={colors.safe}
               control="none"
@@ -418,14 +454,14 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
             <View style={styles.dangerZoneHeader}>
               <Ionicons name="warning-outline" size={16} color={colors.emergency} />
               <Text style={[textStyles.labelMedium, { color: colors.emergency, marginLeft: spacing[2] }]}>
-                Danger Zone
+                {t('settings.dangerZone')}
               </Text>
             </View>
             <Text style={[textStyles.bodySmall, { color: colors.emergencyText, marginTop: spacing[2], marginBottom: spacing[4] }]}>
-              This permanently deletes all your contacts, ride history, and preferences. It cannot be undone.
+              {t('settings.dangerZoneDescription')}
             </Text>
             <CustomButton
-              label="Reset All App Data"
+              label={t('settings.resetAllData')}
               onPress={handleReset}
               variant="danger"
               size="md"

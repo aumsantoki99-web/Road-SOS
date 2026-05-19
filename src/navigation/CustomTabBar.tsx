@@ -27,6 +27,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../context/LocalizationContext';
 import { spacing, radius, layout, borderWidth } from '../theme/spacing';
 import { shadows } from '../theme/shadows';
 import { textStyles } from '../theme/typography';
@@ -35,17 +36,17 @@ import { textStyles } from '../theme/typography';
 
 type TabConfig = {
   route: string;
-  label: string;
+  labelKey: 'tabs.home' | 'tabs.ride' | 'tabs.contacts' | 'tabs.hospitals' | 'tabs.settings';
   icon: keyof typeof Ionicons.glyphMap;
   iconActive: keyof typeof Ionicons.glyphMap;
 };
 
 const TAB_CONFIG: TabConfig[] = [
-  { route: 'Home',      label: 'Home',     icon: 'home-outline',        iconActive: 'home'        },
-  { route: 'Ride',      label: 'Ride',     icon: 'speedometer-outline', iconActive: 'speedometer' },
-  { route: 'Contacts',  label: 'Contacts', icon: 'people-outline',      iconActive: 'people'      },
-  { route: 'Hospitals', label: 'Nearby',   icon: 'medical-outline',     iconActive: 'medical'     },
-  { route: 'Settings',  label: 'Settings', icon: 'settings-outline',    iconActive: 'settings'    },
+  { route: 'Home',      labelKey: 'tabs.home',      icon: 'home-outline',        iconActive: 'home'        },
+  { route: 'Ride',      labelKey: 'tabs.ride',      icon: 'speedometer-outline', iconActive: 'speedometer' },
+  { route: 'Contacts',  labelKey: 'tabs.contacts',  icon: 'people-outline',      iconActive: 'people'      },
+  { route: 'Hospitals', labelKey: 'tabs.hospitals', icon: 'medical-outline',     iconActive: 'medical'     },
+  { route: 'Settings',  labelKey: 'tabs.settings',  icon: 'settings-outline',    iconActive: 'settings'    },
 ];
 
 // ─── SOS Button ───────────────────────────────────────────────────────────────
@@ -133,6 +134,7 @@ function TabItem({
   onPress: () => void;
 }): React.JSX.Element {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const scale        = useRef(new Animated.Value(1)).current;
   const labelOpacity = useRef(new Animated.Value(isActive ? 1 : 0)).current;
@@ -166,7 +168,7 @@ function TabItem({
       onPressOut={handlePressOut}
       activeOpacity={1}
       accessibilityRole="tab"
-      accessibilityLabel={config.label}
+      accessibilityLabel={t(config.labelKey)}
       accessibilityState={{ selected: isActive }}
     >
       <Animated.View style={[styles.tabItemInner, { transform: [{ scale }] }]}>
@@ -178,7 +180,7 @@ function TabItem({
           style={[textStyles.labelMedium, styles.tabLabel, { color: colors.tabBarActive, opacity: labelOpacity }]}
           numberOfLines={1}
         >
-          {config.label}
+          {t(config.labelKey)}
         </Animated.Text>
 
         {/* Animated pill indicator */}

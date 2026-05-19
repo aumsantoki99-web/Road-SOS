@@ -70,6 +70,7 @@ export interface QueuedAlert {
 
 export type ThemeMode = 'light' | 'dark' | 'system' | 'auto';
 export type CrashSensitivity = 'low' | 'medium' | 'high';
+export type AppLanguage = 'en' | 'hi' | 'gu';
 
 export interface UserPreferences {
   themeMode: ThemeMode;
@@ -78,7 +79,7 @@ export interface UserPreferences {
   offlineModeEnabled: boolean;
   autoShareLocation: boolean;
   rideAutoStart: boolean;
-  language: string;
+  language: AppLanguage;
 }
 
 // ─── Network ─────────────────────────────────────────────────────────────────

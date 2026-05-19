@@ -35,7 +35,7 @@ export const DEFAULT_PREFERENCES = {
   offlineModeEnabled: true,
   autoShareLocation: false,
   rideAutoStart: false,
-  language: 'en',
+  language: 'en' as const,
 };
 
 // ─── Ride ────────────────────────────────────────────────────────────────────

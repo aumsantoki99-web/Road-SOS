@@ -31,6 +31,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAppState } from '../../context/AppStateContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { useGreeting } from '../../hooks/useGreeting';
 import { useFadeIn, useSlideUp } from '../../hooks/useAnimation';
@@ -51,6 +52,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 function SafetyStatusChip({ rideStatus }: { rideStatus: string }): React.JSX.Element {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -67,7 +69,7 @@ function SafetyStatusChip({ rideStatus }: { rideStatus: string }): React.JSX.Ele
 
   const isActive = rideStatus === 'active';
   const dotColor = isActive ? colors.safe : colors.textTertiary;
-  const label    = isActive ? 'Ride Active' : 'Ready to ride';
+  const label    = isActive ? t('home.rideActive') : t('home.readyToRide');
   const bg       = isActive ? colors.safeSubtle : colors.surfaceSecondary;
   const border   = isActive ? colors.safeMuted   : colors.surfaceBorder;
 
@@ -246,6 +248,7 @@ function ActivityTimeline({ rides }: { rides: typeof mockRideHistory }): React.J
 
 export function HomeScreen(_props: HomeScreenProps): React.JSX.Element {
   const { colors, isDark, isNight } = useTheme();
+  const { t } = useTranslation();
   const { state } = useAppState();
   const nav = useAppNavigation();
   const { greeting, isNightRide } = useGreeting();
@@ -314,7 +317,7 @@ export function HomeScreen(_props: HomeScreenProps): React.JSX.Element {
             <View style={styles.heroTop}>
               <View style={styles.heroText}>
                 <Text style={[textStyles.labelCaps, { color: colors.accent, marginBottom: spacing[1] }]}>
-                  RIDESAFE
+                  {t('home.title').toUpperCase()}
                 </Text>
                 <Text style={[textStyles.displayMedium, { color: colors.textPrimary }]}>
                   {greeting}

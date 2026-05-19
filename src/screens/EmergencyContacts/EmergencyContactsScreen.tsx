@@ -27,6 +27,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { useContacts } from '../../hooks/useContacts';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 
@@ -112,6 +113,7 @@ function PrimaryHeroCard({
 
 export function EmergencyContactsScreen(_props: ContactsScreenProps): React.JSX.Element {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const nav = useAppNavigation();
   const { contacts, isLoading, deleteContact, setPrimary, reload } = useContacts();
 
@@ -188,9 +190,9 @@ export function EmergencyContactsScreen(_props: ContactsScreenProps): React.JSX.
         ]}
       >
         <View style={styles.pageHeaderLeft}>
-          <Text style={[textStyles.displaySmall, { color: colors.textPrimary }]}>
-            Contacts
-          </Text>
+            <Text style={[textStyles.displaySmall, { color: colors.textPrimary }]}>
+            {t('contacts.title')}
+            </Text>
           {hasContacts && (
             <View style={[styles.countBadge, { backgroundColor: colors.surfaceSecondary }]}>
               <Text style={[textStyles.labelMedium, { color: colors.textSecondary }]}>
@@ -200,7 +202,7 @@ export function EmergencyContactsScreen(_props: ContactsScreenProps): React.JSX.
           )}
         </View>
         <CustomButton
-          label="Add"
+          label={t('contacts.add')}
           onPress={() => nav.navigate('AddContact')}
           variant="primary"
           size="sm"
@@ -208,7 +210,7 @@ export function EmergencyContactsScreen(_props: ContactsScreenProps): React.JSX.
         />
       </Animated.View>
 
-      <LoadingOverlay visible={isLoading && contacts.length === 0} mode="inline" message="Loading contacts..." />
+      <LoadingOverlay visible={isLoading && contacts.length === 0} mode="inline" message={t('contacts.loading')} />
 
       {!isLoading && (
         <FlatList

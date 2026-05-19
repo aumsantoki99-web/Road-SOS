@@ -25,6 +25,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AppStateProvider } from './src/context/AppStateContext';
 import { NetworkProvider } from './src/context/NetworkContext';
+import { LocalizationProvider } from './src/context/LocalizationContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { useAppFonts } from './src/theme/fonts';
 import { StorageService } from './src/storage/StorageService';
@@ -126,11 +127,13 @@ export default function App(): React.JSX.Element {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <NetworkProvider>
-            <AppStateProvider>
-              <AppInner />
-            </AppStateProvider>
-          </NetworkProvider>
+          <LocalizationProvider>
+            <NetworkProvider>
+              <AppStateProvider>
+                <AppInner />
+              </AppStateProvider>
+            </NetworkProvider>
+          </LocalizationProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

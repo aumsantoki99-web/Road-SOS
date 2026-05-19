@@ -13,6 +13,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import type { TabParamList } from './types';
 import { CustomTabBar } from './CustomTabBar';
+import { useTranslation } from '../context/LocalizationContext';
 
 // ── Screen imports (stubs — fleshed out in later branches) ────────────────────
 import { HomeScreen } from '../screens/Home/HomeScreen';
@@ -24,6 +25,8 @@ import { SettingsScreen } from '../screens/Settings/SettingsScreen';
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export function TabNavigator(): React.JSX.Element {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomTabBar {...props} />}
@@ -37,35 +40,35 @@ export function TabNavigator(): React.JSX.Element {
         name="Home"
         component={HomeScreen}
         options={{
-          title: 'Home',
+          title: t('tabs.home'),
         }}
       />
       <Tab.Screen
         name="Ride"
         component={RideMonitoringScreen}
         options={{
-          title: 'Ride',
+          title: t('tabs.ride'),
         }}
       />
       <Tab.Screen
         name="Contacts"
         component={EmergencyContactsScreen}
         options={{
-          title: 'Contacts',
+          title: t('tabs.contacts'),
         }}
       />
       <Tab.Screen
         name="Hospitals"
         component={NearbyHospitalsScreen}
         options={{
-          title: 'Hospitals',
+          title: t('tabs.hospitals'),
         }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
-          title: 'Settings',
+          title: t('tabs.settings'),
         }}
       />
     </Tab.Navigator>
