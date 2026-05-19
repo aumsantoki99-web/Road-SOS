@@ -20,7 +20,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AppStateProvider } from './src/context/AppStateContext';
@@ -69,7 +69,6 @@ function AppInner(): React.JSX.Element | null {
       try {
         if (!fontsLoaded) return;
         await StorageService.initialize();
-        await new Promise<void>((resolve) => setTimeout(resolve, 300));
       } catch (error) {
         console.warn('[App] Initialization error:', error);
       } finally {
@@ -79,20 +78,42 @@ function AppInner(): React.JSX.Element | null {
     void prepare();
   }, [fontsLoaded]);
 
-  const onLayoutRootView = useCallback(async (): Promise<void> => {
-    if (appIsReady) await SplashScreen.hideAsync();
-  }, [appIsReady]);
+  useEffect(() => {
+    if (!appIsReady || !fontsLoaded) return;
 
-  if (!appIsReady || !fontsLoaded) return null;
+    const hideSplash = async (): Promise<void> => {
+      try {
+        await SplashScreen.hideAsync();
+      } catch (error) {
+        console.warn('[App] Failed to hide splash screen:', error);
+      }
+    };
+
+    void hideSplash();
+  }, [appIsReady, fontsLoaded]);
+
+  const onLayoutRootView = useCallback((): void => {
+    if (appIsReady && fontsLoaded) {
+      void SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [appIsReady, fontsLoaded]);
+
+  const isReady = appIsReady && fontsLoaded;
 
   return (
     <View
       style={[styles.container, { backgroundColor: colors.bgPrimary }]}
       onLayout={onLayoutRootView}
     >
-      <NavigationContainer theme={navigationTheme}>
-        <AppNavigator />
-      </NavigationContainer>
+      {isReady ? (
+        <NavigationContainer theme={navigationTheme}>
+          <AppNavigator />
+        </NavigationContainer>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      )}
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );
@@ -119,4 +140,9 @@ export default function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   root:      { flex: 1 },
   container: { flex: 1 },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
