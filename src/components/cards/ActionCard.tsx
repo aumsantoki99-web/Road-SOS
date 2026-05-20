@@ -1,24 +1,16 @@
 /**
- * ActionCard — Quick action grid tile
+ * ActionCard — Premium Quick Action Tile
+ * feature/ui-polish-global ✅
  *
- * Used in the Home screen quick action grid.
- * 2×2 grid: Start Ride | Emergency Contacts | Nearby Hospitals | Offline Mode
+ * Redesigned to match the polished HomeScreen ActionTile aesthetic.
+ * Used in: HomeScreen quick actions grid, any dashboard grid layout.
  *
- * Design:
- *   - Icon in a gradient-tinted pill container
- *   - Title bold, description muted below
- *   - Subtle top-left accent stripe (brand touch)
- *   - Spring press scale with card lift on press
- *   - Optional badge (e.g. contact count, unsynced items)
- *
- * Usage:
- *   <ActionCard
- *     icon="speedometer"
- *     iconColor={colors.safe}
- *     title="Start Ride"
- *     description="Begin safety monitoring"
- *     onPress={handleStart}
- *   />
+ * Features:
+ *   - Full-width accent line at top (color-coded per action)
+ *   - Icon in a tinted container
+ *   - Spring press animation with scale + subtle shadow lift
+ *   - Badge count for contacts, alerts etc.
+ *   - Disabled state with reduced opacity
  */
 
 import React, { useRef } from 'react';
@@ -32,26 +24,22 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
-import { spacing, radius, layout } from '../../theme/spacing';
+import { spacing, radius, borderWidth, layout } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface ActionCardProps {
   icon: keyof typeof Ionicons.glyphMap;
-  /** Icon and accent color — pass a color token */
   iconColor: string;
   title: string;
   description?: string;
   onPress: () => void;
-  /** Optional badge count (e.g. number of contacts) */
   badge?: number;
   disabled?: boolean;
   accessibilityHint?: string;
+  /** Makes the card horizontal layout — for hero/wide cards */
+  hero?: boolean;
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function ActionCard({
   icon,
@@ -62,35 +50,30 @@ export function ActionCard({
   badge,
   disabled = false,
   accessibilityHint,
+  hero = false,
 }: ActionCardProps): React.JSX.Element {
   const { colors } = useTheme();
-  const scale = useRef(new Animated.Value(1)).current;
-  const elevation = useRef(new Animated.Value(1)).current;
+  const scale   = useRef(new Animated.Value(1)).current;
+  const shadowO = useRef(new Animated.Value(1)).current;
 
   function handlePressIn(): void {
     Animated.parallel([
-      Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 60 }),
-      Animated.timing(elevation, { toValue: 0, duration: 100, useNativeDriver: true }),
+      Animated.spring(scale,   { toValue: 0.95, useNativeDriver: true,  speed: 60, bounciness: 0 }),
+      Animated.timing(shadowO, { toValue: 0.4,  useNativeDriver: false, duration: 100 }),
     ]).start();
   }
 
   function handlePressOut(): void {
     Animated.parallel([
-      Animated.spring(scale, {
-        toValue: 1,
-        useNativeDriver: true,
-        speed: 20,
-        bounciness: 10,
-      }),
-      Animated.timing(elevation, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.spring(scale,   { toValue: 1, useNativeDriver: true,  speed: 20, bounciness: 10 }),
+      Animated.timing(shadowO, { toValue: 1, useNativeDriver: false, duration: 200 }),
     ]).start();
   }
 
-  // Icon container background — very subtle tint of the icon color
-  const iconBgColor = `${iconColor}1A`; // 10% opacity
+  const iconBg = `${iconColor}18`;
 
   return (
-    <Animated.View style={[{ transform: [{ scale }], opacity: elevation }]}>
+    <Animated.View style={[{ transform: [{ scale }] }, hero && styles.heroWrap]}>
       <TouchableOpacity
         onPress={disabled ? undefined : onPress}
         onPressIn={disabled ? undefined : handlePressIn}
@@ -103,10 +86,11 @@ export function ActionCard({
         accessibilityState={{ disabled }}
         style={[
           styles.card,
+          hero && styles.cardHero,
           {
             backgroundColor: colors.surfacePrimary,
             borderColor: colors.surfaceBorder,
-            opacity: disabled ? 0.5 : 1,
+            opacity: disabled ? 0.45 : 1,
           },
           shadows.card,
         ]}
@@ -115,25 +99,25 @@ export function ActionCard({
         <View style={[styles.accentStripe, { backgroundColor: iconColor }]} />
 
         {/* Icon */}
-        <View style={[styles.iconContainer, { backgroundColor: iconBgColor }]}>
-          <Ionicons name={icon} size={layout.iconMd} color={iconColor} />
+        <View style={[styles.iconWrap, { backgroundColor: iconBg }, hero && styles.iconWrapHero]}>
+          <Ionicons name={icon} size={hero ? 26 : 22} color={iconColor} />
         </View>
 
         {/* Text */}
-        <View style={styles.textBlock}>
+        <View style={[styles.textBlock, hero && styles.textBlockHero]}>
           <Text
-            style={[textStyles.headingSmall, { color: colors.textPrimary }]}
+            style={[
+              hero ? textStyles.headingSmall : textStyles.labelLarge,
+              { color: colors.textPrimary },
+            ]}
             numberOfLines={1}
           >
             {title}
           </Text>
           {description !== undefined && (
             <Text
-              style={[
-                textStyles.caption,
-                { color: colors.textTertiary, marginTop: spacing[0.5] },
-              ]}
-              numberOfLines={2}
+              style={[textStyles.caption, { color: colors.textTertiary, marginTop: 2 }]}
+              numberOfLines={hero ? 1 : 2}
             >
               {description}
             </Text>
@@ -143,7 +127,7 @@ export function ActionCard({
         {/* Badge */}
         {badge !== undefined && badge > 0 && (
           <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-            <Text style={[textStyles.caption, { color: colors.black, fontWeight: '700' }]}>
+            <Text style={[textStyles.caption, { color: colors.black, fontWeight: '800' }]}>
               {badge > 99 ? '99+' : badge}
             </Text>
           </View>
@@ -153,37 +137,43 @@ export function ActionCard({
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
+  heroWrap: { alignSelf: 'stretch' },
   card: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: radius.xl,
+    borderWidth: borderWidth.thin,
     padding: spacing[4],
     paddingTop: spacing[5],
     overflow: 'hidden',
-    minHeight: 130,
     position: 'relative',
+    minHeight: 110,
+  },
+  cardHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[4],
+    minHeight: 80,
+    paddingTop: spacing[4],
   },
   accentStripe: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 40,
+    right: 0,
     height: 3,
-    borderBottomRightRadius: radius.sm,
   },
-  iconContainer: {
+  iconWrap: {
     width: 44,
     height: 44,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing[3],
+    flexShrink: 0,
   },
-  textBlock: {
-    flex: 1,
-  },
+  iconWrapHero: { marginBottom: 0 },
+  textBlock:     {},
+  textBlockHero: { flex: 1 },
   badge: {
     position: 'absolute',
     top: spacing[3],

@@ -10,7 +10,7 @@
  *   - Gradient emergency header creates immediate urgency recognition
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -51,10 +51,32 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
     onCancel: handleCancel,
   });
 
+  // Edge glow animation
+  const edgeGlowOpacity = useRef(new Animated.Value(0)).current;
+
+  // Haptic + edge glow on every tick
+  useEffect(() => {
+    if (count <= 0 || count >= SOS_SECONDS) return;
+
+    // Edge glow pulse
+    Animated.sequence([
+      Animated.timing(edgeGlowOpacity, { toValue: 0.8, duration: 120, useNativeDriver: true }),
+      Animated.timing(edgeGlowOpacity, { toValue: 0,   duration: 500, useNativeDriver: true }),
+    ]).start();
+  }, [count, edgeGlowOpacity]);
+
   const AVATAR_COLORS = ['#7C3AED','#0D9488','#DC2626','#D97706','#2563EB','#059669'];
 
   return (
     <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+      {/* Top edge glow — pulses red on each countdown tick */}
+      <Animated.View
+        style={[
+          styles.edgeGlow,
+          { backgroundColor: colors.emergency, opacity: edgeGlowOpacity },
+        ]}
+        pointerEvents="none"
+      />
       <View style={[styles.sheet, { backgroundColor: colors.bgSecondary, borderColor: colors.emergencyBorder }, shadows.float]}>
 
         {/* ── Emergency header ───────────────────────────────────────── */}
@@ -173,6 +195,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: layout.screenHorizontal,
     paddingBottom: spacing[8],
+  },
+  edgeGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    zIndex: 999,
   },
   sheet: {
     borderRadius: radius['2xl'],

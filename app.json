@@ -1,5 +1,9 @@
 {
   "expo": {
+    "sdkVersion": "54.0.0",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "slug": "ridesafe",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -49,6 +53,11 @@
           "imageWidth": 200
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-eas-project-id-here"
+      }
+    }
   }
 }

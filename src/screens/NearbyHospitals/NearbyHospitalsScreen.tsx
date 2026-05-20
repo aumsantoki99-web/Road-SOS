@@ -11,13 +11,14 @@
  *   - Emergency centres visually prioritised with red accent
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  Animated,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -169,13 +170,31 @@ function NearestHospitalHero({
 function HospitalListCard({
   hospital,
   onPress,
+  index,
+  maxDistance,
 }: {
   hospital: Hospital;
   onPress: () => void;
+  index: number;
+  maxDistance: number;
 }): React.JSX.Element {
   const { colors } = useTheme();
   const isEmergency = hospital.isEmergencyCenter;
   const accentColor = isEmergency ? colors.emergency : colors.accent;
+
+  // Animated distance bar
+  const barWidth = useRef(new Animated.Value(0)).current;
+  const barRatio = maxDistance > 0 ? hospital.distanceKm / maxDistance : 0;
+  const barColor = index === 0 ? colors.safe : index === 1 ? colors.accent : colors.textTertiary;
+
+  useEffect(() => {
+    Animated.timing(barWidth, {
+      toValue: barRatio,
+      duration: 600,
+      delay: index * 150,
+      useNativeDriver: false,
+    }).start();
+  }, [barWidth, barRatio, index]);
 
   return (
     <TouchableOpacity
@@ -223,6 +242,21 @@ function HospitalListCard({
               <Text style={[textStyles.caption, { color: colors.emergency, fontWeight: '700' }]}>EMERGENCY</Text>
             </View>
           )}
+        </View>
+        {/* Animated distance bar */}
+        <View style={[styles.distanceBarTrack, { backgroundColor: colors.surfaceSecondary }]}>
+          <Animated.View
+            style={[
+              styles.distanceBarFill,
+              {
+                backgroundColor: barColor,
+                width: barWidth.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
         </View>
       </View>
 
@@ -293,9 +327,11 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
             )}
           </>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <HospitalListCard
             hospital={item}
+            index={index}
+            maxDistance={Math.max(...rest.map((h) => h.distanceKm))}
             onPress={() => nav.navigate('HospitalDetail', { hospitalId: item.id })}
           />
         )}
@@ -453,6 +489,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[1],
     borderRadius: radius.full,
   },
+  distancePillSm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[0.5],
+    borderRadius: radius.full,
+  },
 
   // List card
   listCard: {
@@ -474,11 +517,14 @@ const styles = StyleSheet.create({
   },
   listCardBody: { flex: 1 },
   listCardChips: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[2], flexWrap: 'wrap' },
-  distancePillSm: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[0.5],
+  distanceBarTrack: {
+    height: 3,
+    borderRadius: radius.full,
+    marginTop: spacing[3],
+    overflow: 'hidden',
+  },
+  distanceBarFill: {
+    height: '100%',
     borderRadius: radius.full,
   },
 

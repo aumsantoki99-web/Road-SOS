@@ -12,7 +12,7 @@
  *   - Messaging is reassuring: "RideSafe has you covered"
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -21,8 +21,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from 'react-native';import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -211,7 +210,10 @@ export function OfflineModeScreen(): React.JSX.Element {
 
   const [queue,      setQueue]      = useState<QueuedAlert[]>([]);
   const [isFlushing, setFlushing]   = useState(false);
+  const [syncDone,   setSyncDone]   = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const checkScale   = useRef(new Animated.Value(0)).current;
 
   async function loadQueue(): Promise<void> {
     const items = await QueueService.getAll();
@@ -230,9 +232,35 @@ export function OfflineModeScreen(): React.JSX.Element {
   async function handleFlush(): Promise<void> {
     if (!isConnected) return;
     setFlushing(true);
+    setSyncDone(false);
+    progressAnim.setValue(0);
+
+    // Animate progress bar during flush
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 1400,
+      useNativeDriver: false,
+    }).start();
+
     await QueueService.flush();
     await loadQueue();
+
+    // Complete and show checkmark
+    progressAnim.setValue(1);
     setFlushing(false);
+    setSyncDone(true);
+
+    Animated.spring(checkScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 12,
+      bounciness: 14,
+    }).start();
+
+    setTimeout(() => {
+      setSyncDone(false);
+      checkScale.setValue(0);
+    }, 2200);
   }
 
   async function handleClear(): Promise<void> {
@@ -306,24 +334,56 @@ export function OfflineModeScreen(): React.JSX.Element {
             </View>
 
             <View style={styles.queueActions}>
-              <CustomButton
-                label={isFlushing ? 'Syncing...' : `Sync ${pendingCount} Alert${pendingCount !== 1 ? 's' : ''}`}
-                onPress={() => void handleFlush()}
-                variant="primary"
-                size="md"
-                fullWidth
-                loading={isFlushing}
-                disabled={!isConnected || isFlushing || pendingCount === 0}
-                iconLeft="cloud-upload"
-              />
-              <View style={{ height: spacing[2] }} />
-              <CustomButton
-                label="Clear Queue"
-                onPress={() => void handleClear()}
-                variant="ghost"
-                size="md"
-                fullWidth
-              />
+              {isFlushing ? (
+                <View style={[styles.progressWrap, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
+                  <View style={[styles.progressTrack, { backgroundColor: colors.surfaceSecondary }]}>
+                    <Animated.View
+                      style={[
+                        styles.progressFill,
+                        {
+                          backgroundColor: colors.safe,
+                          width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: spacing[2] }]}>
+                    Syncing alerts...
+                  </Text>
+                </View>
+              ) : syncDone ? (
+                <View style={[styles.syncDoneWrap, { backgroundColor: colors.safeSubtle }]}>
+                  <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+                    <Ionicons name="checkmark-circle" size={28} color={colors.safe} />
+                  </Animated.View>
+                  <Text style={[textStyles.bodySmall, { color: colors.safeText, marginLeft: spacing[2], fontWeight: '600' }]}>
+                    Sync complete
+                  </Text>
+                </View>
+              ) : (
+                <CustomButton
+                  label={`Sync ${pendingCount} Alert${pendingCount !== 1 ? 's' : ''}`}
+                  onPress={() => void handleFlush()}
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  loading={false}
+                  disabled={!isConnected || pendingCount === 0}
+                  iconLeft="cloud-upload"
+                />
+              )}
+              {!isFlushing && !syncDone && (
+                <>
+                  <View style={{ height: spacing[2] }} />
+                  <CustomButton
+                    label="Clear Queue"
+                    onPress={() => void handleClear()}
+                    variant="ghost"
+                    size="md"
+                    fullWidth
+                  />
+                </>
+              )}
             </View>
           </>
         )}
@@ -440,6 +500,29 @@ const styles = StyleSheet.create({
   },
 
   queueActions: { marginTop: spacing[3] },
+  progressWrap: {
+    borderRadius: radius.lg,
+    borderWidth: borderWidth.thin,
+    padding: spacing[4],
+    alignItems: 'center',
+  },
+  progressTrack: {
+    width: '100%',
+    height: 6,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: radius.full,
+  },
+  syncDoneWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.lg,
+    paddingVertical: spacing[4],
+  },
 
   emptyQueue: {
     alignItems: 'center',

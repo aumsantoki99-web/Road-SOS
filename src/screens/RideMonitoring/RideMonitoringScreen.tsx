@@ -35,6 +35,7 @@ import { AppHeader } from '../../components/common/AppHeader';
 import { CustomButton } from '../../components/common/CustomButton';
 import { SpeedGauge } from './SpeedGauge';
 import { RideSummaryCard } from './RideSummaryCard';
+import { RideStartSequence } from './RideStartSequence';
 
 import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
@@ -209,6 +210,7 @@ export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element
   const nav = useRideSession();
   const navigation = useAppNavigation();
   const [completedSession, setCompletedSession] = useState<RideSession | null>(null);
+  const [showStartSequence, setShowStartSequence] = useState(false);
 
   const isIdle   = nav.status === 'idle';
   const isActive = nav.status === 'active';
@@ -222,8 +224,13 @@ export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element
     : [colors.bgElevated, colors.bgPrimary];
 
   function handleStart(): void {
-    nav.startRide();
     setCompletedSession(null);
+    setShowStartSequence(true);
+  }
+
+  function handleSequenceComplete(): void {
+    setShowStartSequence(false);
+    nav.startRide();
   }
 
   function handleStop(): void {
@@ -249,6 +256,11 @@ export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"
+      />
+
+      <RideStartSequence
+        visible={showStartSequence}
+        onComplete={handleSequenceComplete}
       />
 
       <AppHeader

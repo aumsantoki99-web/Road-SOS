@@ -1,56 +1,33 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    /* Language & Environment */
     "target": "ES2020",
-    "lib": [
-      "ES2020"
-    ],
+    "lib": ["ES2020"],
     "jsx": "react-native",
+
+    /* Modules */
     "module": "preserve",
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@components/*": [
-        "src/components/*"
-      ],
-      "@screens/*": [
-        "src/screens/*"
-      ],
-      "@navigation/*": [
-        "src/navigation/*"
-      ],
-      "@hooks/*": [
-        "src/hooks/*"
-      ],
-      "@context/*": [
-        "src/context/*"
-      ],
-      "@theme/*": [
-        "src/theme/*"
-      ],
-      "@services/*": [
-        "src/services/*"
-      ],
-      "@storage/*": [
-        "src/storage/*"
-      ],
-      "@utils/*": [
-        "src/utils/*"
-      ],
-      "@mock/*": [
-        "src/mock/*"
-      ],
-      "@constants/*": [
-        "src/constants/*"
-      ],
-      "@types/*": [
-        "src/types/*"
-      ],
-      "@assets/*": [
-        "src/assets/*"
-      ]
+      "@components/*": ["src/components/*"],
+      "@screens/*": ["src/screens/*"],
+      "@navigation/*": ["src/navigation/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@context/*": ["src/context/*"],
+      "@theme/*": ["src/theme/*"],
+      "@services/*": ["src/services/*"],
+      "@storage/*": ["src/storage/*"],
+      "@utils/*": ["src/utils/*"],
+      "@mock/*": ["src/mock/*"],
+      "@constants/*": ["src/constants/*"],
+      "@types/*": ["src/types/*"],
+      "@assets/*": ["src/assets/*"]
     },
     "resolveJsonModule": true,
+
+    /* Strict Type Checking */
     "strict": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
@@ -62,9 +39,13 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
+
+    /* Additional Checks */
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "forceConsistentCasingInFileNames": true,
+
+    /* Emit */
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
@@ -72,7 +53,8 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".expo/types/**/*.d.ts"
+    ".expo/types/**/*.d.ts",
+    "expo-env.d.ts"
   ],
   "exclude": [
     "node_modules"
