@@ -33,6 +33,11 @@ import { HospitalDetailScreen } from '../screens/NearbyHospitals/HospitalDetailS
 import { RideHistoryScreen } from '../screens/RideMonitoring/RideHistoryScreen';
 import { SOSConfirmationScreen } from '../screens/Home/SOSConfirmationScreen';
 import { OfflineModeScreen } from '../screens/OfflineMode/OfflineModeScreen';
+import { InAppNavigationModal } from '../screens/RideMonitoring/InAppNavigationModal';
+import { CrashCountdownScreen } from '../screens/SOS/CrashCountdownScreen';
+import { DeadManSwitchScreen } from '../screens/SOS/DeadManSwitchScreen';
+import { SosTriggeredScreen } from '../screens/SOS/SosTriggeredScreen';
+import { MedicalIDScreen } from '../screens/Settings/MedicalIDScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -86,6 +91,17 @@ export function AppNavigator(): React.JSX.Element {
         }}
       />
 
+      {/* ── Emergency In-App Navigation ──────────────────────────────── */}
+      <Stack.Screen
+        name="InAppNavigation"
+        component={InAppNavigationModal}
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'fade',
+          headerShown: false,
+        }}
+      />
+
       {/* ── Ride history ──────────────────────────────────────────────── */}
       <Stack.Screen
         name="RideHistory"
@@ -105,6 +121,45 @@ export function AppNavigator(): React.JSX.Element {
         options={{
           presentation: 'transparentModal',
           animation: 'fade',
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="MedicalID"
+        component={MedicalIDScreen}
+        options={{
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+          headerShown: false,
+        }}
+      />
+
+      {/* ── Teammate SOS screens ─────────────────────────────────────── */}
+      <Stack.Screen
+        name="CrashCountdown"
+        component={CrashCountdownScreen}
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="DeadManSwitch"
+        component={DeadManSwitchScreen}
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="SosTriggered"
+        component={SosTriggeredScreen}
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
           headerShown: false,
         }}
       />

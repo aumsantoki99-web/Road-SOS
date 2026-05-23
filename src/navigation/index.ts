@@ -21,4 +21,5 @@ export type {
   SettingsScreenProps,
   EditContactScreenProps,
   HospitalDetailScreenProps,
+  InAppNavigationScreenProps,
 } from './types';

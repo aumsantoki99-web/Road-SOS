@@ -11,7 +11,7 @@
 
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { CompositeNavigationProp, RouteProp } from '@react-navigation/native';
+import type { CompositeNavigationProp, RouteProp, NavigatorScreenParams } from '@react-navigation/native';
 
 // ─── Tab Navigator Param List ─────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ export type TabParamList = {
 
 export type RootStackParamList = {
   /** Main tab layout — houses all 5 tab screens */
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<TabParamList> | undefined;
 
   /** Modal: Offline mode status and queue */
   OfflineMode: undefined;
@@ -46,6 +46,17 @@ export type RootStackParamList = {
 
   /** Modal: SOS confirmation / countdown screen */
   SOSConfirmation: undefined;
+
+  /** Modal: In-app emergency turn-by-turn navigation */
+  InAppNavigation: { hospitalId: string };
+
+  /** Modal: Medical ID setup & editing */
+  MedicalID: { isForceOnboarding?: boolean } | undefined;
+
+  /** Teammate SOS integration routes */
+  CrashCountdown: { event: import('../services/crashDetection.service').CrashEvent };
+  DeadManSwitch: { event: import('../services/crashDetection.service').CrashEvent };
+  SosTriggered: { event: import('../services/crashDetection.service').CrashEvent; sosMessage?: string };
 
   // ── Future auth flow (uncomment when auth branch begins) ──────────────────
   // Onboarding: undefined;
@@ -111,5 +122,10 @@ export type EditContactScreenProps = {
 export type HospitalDetailScreenProps = {
   navigation: RootScreenNavigationProp<'HospitalDetail'>;
   route: RootScreenRouteProp<'HospitalDetail'>;
+};
+
+export type InAppNavigationScreenProps = {
+  navigation: RootScreenNavigationProp<'InAppNavigation'>;
+  route: RootScreenRouteProp<'InAppNavigation'>;
 };
 

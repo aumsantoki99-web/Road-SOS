@@ -12,7 +12,7 @@
  *   - Smooth slide-up entrance animation
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   Linking,
   Alert,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,14 +34,17 @@ import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 import { formatDistance } from '../../utils';
-import { mockHospitals } from '../../mock';
+import { HospitalService } from '../../services';
+import type { Hospital } from '../../types';
 import type { HospitalDetailScreenProps } from '../../navigation/types';
 
 export function HospitalDetailScreen({ route }: HospitalDetailScreenProps): React.JSX.Element {
   const { colors } = useTheme();
   const nav        = useAppNavigation();
   const { hospitalId } = route.params;
-  const hospital   = mockHospitals.find((h) => h.id === hospitalId);
+  const [hospital, setHospital] = useState<Hospital | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [liveDistanceKm, setLiveDistanceKm] = useState<number | null>(null);
 
   const slideAnim  = useRef(new Animated.Value(40)).current;
   const fadeAnim   = useRef(new Animated.Value(0)).current;
@@ -51,6 +55,45 @@ export function HospitalDetailScreen({ route }: HospitalDetailScreenProps): Reac
       Animated.timing(fadeAnim,  { toValue: 1, duration: 350, useNativeDriver: true }),
     ]).start();
   }, [slideAnim, fadeAnim]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadHospital(): Promise<void> {
+      try {
+        const result = await HospitalService.getById(hospitalId);
+        if (!mounted) return;
+        setHospital(result);
+
+        // Recalculate real distance from current GPS
+        if (result?.latitude && result?.longitude) {
+          try {
+            const userLoc = await HospitalService.getUserLocation();
+            const dist = HospitalService.haversineKm(userLoc, {
+              latitude: result.latitude,
+              longitude: result.longitude,
+            });
+            if (mounted) setLiveDistanceKm(Math.round(dist * 100) / 100);
+          } catch (_) {
+            // keep stored distanceKm as fallback
+          }
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    void loadHospital();
+    return () => { mounted = false; };
+  }, [hospitalId]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.root, styles.notFound, { backgroundColor: colors.bgSecondary }]} edges={['top', 'bottom']}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </SafeAreaView>
+    );
+  }
 
   // ── Not found ──────────────────────────────────────────────────────────────
   if (!hospital) {
@@ -72,15 +115,75 @@ export function HospitalDetailScreen({ route }: HospitalDetailScreenProps): Reac
   const resolvedHospital = hospital;
   const isEmergency = hospital.isEmergencyCenter;
 
+  // Best available distance
+  const displayDistanceKm = liveDistanceKm ?? resolvedHospital.distanceKm;
+  const displayEta = Math.max(3, Math.round((displayDistanceKm / 30) * 60));
+
+  // Phone — use stored number or fallback to 108 (Indian ambulance)
+  const hasPhone = Boolean(resolvedHospital.phone?.trim());
+  const displayPhone = hasPhone ? resolvedHospital.phone.trim() : '108';
+
   function handleCall(): void {
-    const url = `tel:${resolvedHospital.phone}`;
+    const url = `tel:${displayPhone}`;
     Linking.canOpenURL(url)
-      .then((ok) => { if (ok) void Linking.openURL(url); else Alert.alert('Cannot call', 'Phone calls not supported.'); })
+      .then((ok) => {
+        if (ok) void Linking.openURL(url);
+        else Alert.alert('Cannot call', 'Phone calls are not supported on this device.');
+      })
       .catch(() => Alert.alert('Error', 'Could not initiate call.'));
   }
 
+  function openExternalDirections(): void {
+    const lat = resolvedHospital.latitude;
+    const lon = resolvedHospital.longitude;
+
+    if (!lat || !lon) {
+      // No coordinates — fall back to address search
+      const query = encodeURIComponent(resolvedHospital.name + ' ' + resolvedHospital.address);
+      void Linking.openURL(`https://www.google.com/maps/search/?api=1&query= ${query}`);
+      return;
+    }
+
+    // Direct Google Maps navigation (or native fallback)
+    const googleMapsApp  = `google.navigation:q=${lat},${lon}&mode=d`;
+    const googleMapsWeb  = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
+    const appleMaps      = `maps://?daddr=${lat},${lon}&dirflg=d`;
+
+    Linking.canOpenURL(googleMapsApp)
+      .then((canGoogle) => {
+        if (canGoogle) return Linking.openURL(googleMapsApp);
+        return Linking.canOpenURL(appleMaps).then((canApple) => {
+          if (canApple) return Linking.openURL(appleMaps);
+          return Linking.openURL(googleMapsWeb);
+        });
+      })
+      .catch(() => void Linking.openURL(googleMapsWeb));
+  }
+
   function handleDirections(): void {
-    Alert.alert('Directions', 'Connect Google Maps SDK in HospitalService to enable real directions.');
+    Alert.alert(
+      'Emergency Navigation',
+      'Select your navigation mode:',
+      [
+        {
+          text: '⚡ Premium In-App Navigation',
+          onPress: () => {
+            nav.navigate('InAppNavigation', { hospitalId: resolvedHospital.id });
+          },
+        },
+        {
+          text: '🌐 External Maps (Google/Apple)',
+          onPress: () => {
+            openExternalDirections();
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ],
+      { cancelable: true }
+    );
   }
 
   return (
@@ -142,13 +245,13 @@ export function HospitalDetailScreen({ route }: HospitalDetailScreenProps): Reac
               <View style={[styles.statChip, { backgroundColor: colors.accentSubtle, borderColor: colors.accentMuted }]}>
                 <Ionicons name="navigate" size={14} color={colors.accent} />
                 <Text style={[textStyles.headingSmall, { color: colors.accent, marginLeft: spacing[1] }]}>
-                  {formatDistance(resolvedHospital.distanceKm)}
+                  {formatDistance(displayDistanceKm)}
                 </Text>
               </View>
               <View style={[styles.statChip, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
                 <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
                 <Text style={[textStyles.headingSmall, { color: colors.textSecondary, marginLeft: spacing[1] }]}>
-                  ~{resolvedHospital.etaMinutes} min
+                  ~{displayEta} min
                 </Text>
               </View>
             </View>
@@ -166,13 +269,18 @@ export function HospitalDetailScreen({ route }: HospitalDetailScreenProps): Reac
               <View style={{ flex: 1 }}>
                 <Text style={[textStyles.caption, { color: colors.textTertiary }]}>Phone</Text>
                 <Text style={[textStyles.bodyMedium, { color: colors.textPrimary, marginTop: 1 }]}>
-                  {resolvedHospital.phone}
+                  {hasPhone ? displayPhone : '108 (National Ambulance)'}
                 </Text>
+                {!hasPhone && (
+                  <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: 1 }]}>
+                    No direct number listed — dial 108
+                  </Text>
+                )}
               </View>
               <TouchableOpacity
                 onPress={handleCall}
                 style={[styles.callInlineBtn, { backgroundColor: colors.safe }]}
-                accessibilityLabel="Call hospital"
+                accessibilityLabel={hasPhone ? 'Call hospital' : 'Call ambulance 108'}
                 accessibilityRole="button"
               >
                 <Ionicons name="call" size={14} color="#FFF" />
@@ -207,13 +315,18 @@ export function HospitalDetailScreen({ route }: HospitalDetailScreenProps): Reac
             ))}
           </View>
 
-          {/* ── SDK note ─────────────────────────────────────────────── */}
-          <View style={[styles.sdkNote, { backgroundColor: colors.infoSubtle, borderColor: colors.infoMuted }]}>
-            <Ionicons name="code-slash-outline" size={13} color={colors.info} />
-            <Text style={[textStyles.caption, { color: colors.infoText, marginLeft: spacing[2], flex: 1 }]}>
-              {'// TODO: wire latitude/longitude from HospitalService + Google Maps SDK'}
+          {/* ── Active navigation badge ──────────────────────────────────── */}
+          <TouchableOpacity
+            onPress={() => nav.navigate('InAppNavigation', { hospitalId: resolvedHospital.id })}
+            activeOpacity={0.8}
+            style={[styles.activeNavBadge, { backgroundColor: colors.safeSubtle, borderColor: colors.safeMuted, flexDirection: 'row', alignItems: 'center' }]}
+          >
+            <Ionicons name="shield-checkmark" size={14} color={colors.safe} />
+            <Text style={[textStyles.caption, { color: colors.safeText, marginLeft: spacing[2], flex: 1 }]}>
+              ROADSoS Premium In-App Emergency Navigation is active (Tap to Start)
             </Text>
-          </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.safe} />
+          </TouchableOpacity>
 
           <View style={{ height: spacing[24] }} />
         </Animated.View>
@@ -356,7 +469,7 @@ const styles = StyleSheet.create({
     borderWidth: borderWidth.thin,
   },
 
-  sdkNote: {
+  activeNavBadge: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderRadius: radius.md,

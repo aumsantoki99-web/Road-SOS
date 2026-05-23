@@ -4,6 +4,12 @@
  *
  * Presented as transparentModal — background stays visible.
  * Redesigned for emotional clarity under stress:
+/**
+ * SOSConfirmationScreen — Premium Emergency Overlay
+ * feature/ui-polish-home ✅
+ *
+ * Presented as transparentModal — background stays visible.
+ * Redesigned for emotional clarity under stress:
  *   - Large, unmistakeable countdown ring
  *   - Contacts shown with avatars — feel personal not abstract
  *   - Cancel button is prominent and reassuring, not hidden
@@ -17,19 +23,22 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { useSOSCountdown } from '../../hooks/useSOSCountdown';
+import { useRideSession } from '../../hooks/useRideSession';
 import { spacing, radius, layout, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 import { mockContacts } from '../../mock';
 import type { RootScreenNavigationProp } from '../../navigation/types';
-
+import { EmergencyService, NotificationService, SosService } from '../../services';
 const SOS_SECONDS = 10;
 
 type Props = { navigation: RootScreenNavigationProp<'SOSConfirmation'> };
@@ -37,10 +46,59 @@ type Props = { navigation: RootScreenNavigationProp<'SOSConfirmation'> };
 export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
   const { colors } = useTheme();
   const nav = useAppNavigation();
+  const hasSentRef = useRef(false);
+  const rideSession = useRideSession();
 
   const handleComplete = useCallback((): void => {
-    console.warn('[SOS] Alert triggered — connect EmergencyService here');
-    nav.goBack();
+    if (hasSentRef.current) return;
+    hasSentRef.current = true;
+
+    void (async () => {
+      let lat: number | null = null;
+      let lon: number | null = null;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          lat = pos.coords.latitude;
+          lon = pos.coords.longitude;
+        }
+      } catch (locErr) {
+        console.warn('[SOS] Could not get location for SMS:', locErr);
+      }
+
+      const manualEvent = {
+        timestamp: Date.now(),
+        severity: 'severe' as const,
+        latitude: lat ?? 22.3039,
+        longitude: lon ?? 70.8022,
+        gForce: 0,
+        gyroRadS: 0,
+        speedBeforeKmh: 0,
+        speedAfterKmh: 0,
+      };
+
+      try {
+        // Trigger premium RoadGuard dispatching service
+        const result = await SosService.triggerSOS(manualEvent, 'manual_sos_button');
+        await NotificationService.notifySOSSent(2);
+
+        // Start ride session automatically!
+        rideSession.startRide();
+
+        // Replace view with dispatched details HUD
+        nav.replace('SosTriggered', {
+          event: manualEvent,
+          sosMessage: result.message,
+        });
+      } catch (error) {
+        console.warn('[SOS] Failed to trigger manual alert:', error);
+        Alert.alert('SOS failed', 'The alert could not be prepared. Please call emergency services directly.');
+        nav.goBack();
+      }
+    })();
   }, [nav]);
 
   const handleCancel = useCallback((): void => nav.goBack(), [nav]);

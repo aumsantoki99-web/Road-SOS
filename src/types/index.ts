@@ -34,6 +34,19 @@ export interface EmergencyContact {
   updatedAt: number;
 }
 
+// ─── Medical ID Profile ──────────────────────────────────────────────────────
+
+export interface MedicalProfile {
+  name: string;
+  phone: string;
+  dob: string;
+  age: number;
+  gender: 'Male' | 'Female' | 'Other' | '';
+  bloodGroup: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | '';
+  conditions: string;
+  serverUrl?: string;
+}
+
 // ─── Hospital ────────────────────────────────────────────────────────────────
 
 export interface Hospital {

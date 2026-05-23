@@ -49,3 +49,8 @@ coverage/
 
 # EAS
 eas.json
+
+# Backups and temporary files
+scratch/
+_node_modules_old_backup/
+package-lock.old.json

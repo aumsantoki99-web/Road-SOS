@@ -22,9 +22,20 @@ export const STORAGE_KEYS = {
   ALERT_QUEUE: '@ridesafe/alert_queue',
   ONBOARDING_COMPLETE: '@ridesafe/onboarding_complete',
   LAST_SYNC: '@ridesafe/last_sync',
+  MEDICAL_PROFILE: '@ridesafe/medical_profile',
+  PROFILE_SETUP_DONE: '@ridesafe/profile_setup_done',
+  SMS_PERMISSION_GRANTED: '@ridesafe/sms_permission_granted',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
+
+// ─── Emergency Server ────────────────────────────────────────────────────────
+
+export const EMERGENCY_SERVER = {
+  DEFAULT_URL: 'https://dc7231703de60bc1-49-36-89-0.serveousercontent.com',
+  DEFAULT_VOICE_TARGET: '+919314050474',
+  DEFAULT_HELPER_SMS: '+917359129704',
+} as const;
 
 // ─── Default Preferences ────────────────────────────────────────────────────
 

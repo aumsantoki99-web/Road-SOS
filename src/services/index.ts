@@ -27,3 +27,11 @@ export type { UserLocation, HospitalSearchOptions } from './hospital.service';
 
 export { NotificationService } from './notification.service';
 export type { NotificationType, NotificationPayload } from './notification.service';
+
+export { NavigationService } from './navigation.service';
+export type { RouteStep, RouteDetails } from './navigation.service';
+
+export { AlertController } from './alertController';
+export { SosService } from './sosService';
+export type { SosSendResult } from './sosService';
+

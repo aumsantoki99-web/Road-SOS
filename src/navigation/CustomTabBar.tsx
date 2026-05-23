@@ -29,7 +29,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { spacing, radius, layout, borderWidth } from '../theme/spacing';
-import { shadows } from '../theme/shadows';
 import { textStyles } from '../theme/typography';
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
@@ -48,79 +47,6 @@ const TAB_CONFIG: TabConfig[] = [
   { route: 'Hospitals', labelKey: 'tabs.hospitals', icon: 'medical-outline',     iconActive: 'medical'     },
   { route: 'Settings',  labelKey: 'tabs.settings',  icon: 'settings-outline',    iconActive: 'settings'    },
 ];
-
-// ─── SOS Button ───────────────────────────────────────────────────────────────
-
-function SOSButton({ onPress }: { onPress: () => void }): React.JSX.Element {
-  const { colors } = useTheme();
-  const scale      = useRef(new Animated.Value(1)).current;
-  const haloOpacity = useRef(new Animated.Value(0.35)).current;
-
-  // Subtle ambient halo pulse
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(haloOpacity, { toValue: 0.65, duration: 1600, useNativeDriver: true }),
-        Animated.timing(haloOpacity, { toValue: 0.35, duration: 1600, useNativeDriver: true }),
-      ]),
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [haloOpacity]);
-
-  function handlePressIn(): void {
-    Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, speed: 60, bounciness: 0 }).start();
-  }
-  function handlePressOut(): void {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 10 }).start();
-  }
-
-  return (
-    <View style={styles.sosWrapper}>
-      {/* Outer ambient halo */}
-      <Animated.View
-        style={[
-          styles.sosHaloOuter,
-          { borderColor: colors.emergency, opacity: haloOpacity },
-        ]}
-        pointerEvents="none"
-      />
-      {/* Inner halo ring */}
-      <Animated.View
-        style={[
-          styles.sosHaloInner,
-          { borderColor: colors.emergency, opacity: haloOpacity },
-        ]}
-        pointerEvents="none"
-      />
-
-      {/* Ring plate — lifts button above tab bar */}
-      <View style={[styles.sosRing, { backgroundColor: colors.tabBarBackground }]}>
-        <TouchableOpacity
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          activeOpacity={1}
-          accessibilityLabel="SOS Emergency Button"
-          accessibilityHint="Opens emergency alert confirmation"
-          accessibilityRole="button"
-        >
-          <Animated.View
-            style={[
-              styles.sosButton,
-              { backgroundColor: colors.emergency },
-              shadows.glowEmergency,
-              { transform: [{ scale }] },
-            ]}
-          >
-            <Text style={styles.sosLabel}>SOS</Text>
-            <Text style={styles.sosSublabel}>EMERGENCY</Text>
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
 
 // ─── Tab Item ─────────────────────────────────────────────────────────────────
 
@@ -205,9 +131,6 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps): React.JS
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const leftTabs  = TAB_CONFIG.slice(0, 2);
-  const rightTabs = TAB_CONFIG.slice(2);
-
   function handleTabPress(routeName: string): void {
     const route = state.routes.find((item) => item.name === routeName);
     const event = navigation.emit({
@@ -218,10 +141,6 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps): React.JS
     if (!event.defaultPrevented) {
       navigation.navigate(routeName);
     }
-  }
-
-  function handleSOSPress(): void {
-    navigation.getParent()?.navigate('SOSConfirmation');
   }
 
   function isTabActive(routeName: string): boolean {
@@ -250,29 +169,14 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps): React.JS
 
       {/* Tab content row */}
       <View style={styles.row}>
-        <View style={styles.tabGroup}>
-          {leftTabs.map((config) => (
-            <TabItem
-              key={config.route}
-              config={config}
-              isActive={isTabActive(config.route)}
-              onPress={() => handleTabPress(config.route)}
-            />
-          ))}
-        </View>
-
-        <SOSButton onPress={handleSOSPress} />
-
-        <View style={styles.tabGroup}>
-          {rightTabs.map((config) => (
-            <TabItem
-              key={config.route}
-              config={config}
-              isActive={isTabActive(config.route)}
-              onPress={() => handleTabPress(config.route)}
-            />
-          ))}
-        </View>
+        {TAB_CONFIG.map((config) => (
+          <TabItem
+            key={config.route}
+            config={config}
+            isActive={isTabActive(config.route)}
+            onPress={() => handleTabPress(config.route)}
+          />
+        ))}
       </View>
     </View>
   );
@@ -280,18 +184,13 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps): React.JS
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const SOS_SIZE      = 62;
-const SOS_RING_SIZE = SOS_SIZE + 14;
-const SOS_HALO_IN   = SOS_SIZE + 26;
-const SOS_HALO_OUT  = SOS_SIZE + 44;
-
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
     overflow: 'visible',
   },
   gradientOverlay: {
-    top: -24,
+    top: 0,
   },
   topBorder: {
     height: borderWidth.hairline,
@@ -305,12 +204,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     paddingHorizontal: spacing[1],
-  },
-  tabGroup: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
   },
 
   // Tab item
@@ -334,55 +227,5 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: radius.full,
     marginTop: 1,
-  },
-
-  // SOS
-  sosWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -(SOS_RING_SIZE / 2 + spacing[4]),
-  },
-  sosHaloOuter: {
-    position: 'absolute',
-    width: SOS_HALO_OUT,
-    height: SOS_HALO_OUT,
-    borderRadius: SOS_HALO_OUT / 2,
-    borderWidth: 1,
-  },
-  sosHaloInner: {
-    position: 'absolute',
-    width: SOS_HALO_IN,
-    height: SOS_HALO_IN,
-    borderRadius: SOS_HALO_IN / 2,
-    borderWidth: 1.5,
-  },
-  sosRing: {
-    width: SOS_RING_SIZE,
-    height: SOS_RING_SIZE,
-    borderRadius: SOS_RING_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.12, shadowRadius: 8 } }),
-  },
-  sosButton: {
-    width: SOS_SIZE,
-    height: SOS_SIZE,
-    borderRadius: SOS_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({ android: { elevation: 10 } }),
-  },
-  sosLabel: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-    lineHeight: 17,
-  },
-  sosSublabel: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 6,
-    fontWeight: '700',
-    letterSpacing: 1.2,
   },
 });

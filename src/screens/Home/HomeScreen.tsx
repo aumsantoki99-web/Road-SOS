@@ -45,6 +45,8 @@ import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 import { mockRideHistory, mockContacts } from '../../mock';
 import type { HomeScreenProps } from '../../navigation/types';
+import { StorageService } from '../../storage/StorageService';
+import { STORAGE_KEYS } from '../../constants';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -263,6 +265,16 @@ export function HomeScreen(_props: HomeScreenProps): React.JSX.Element {
   useEffect(() => {
     headerFade.start();
     contentSlide.start();
+
+    // Check if the Emergency Medical ID is configured
+    async function checkMedicalId() {
+      const result = await StorageService.get<string>(STORAGE_KEYS.PROFILE_SETUP_DONE);
+      if (!result.success || result.data !== 'true') {
+        console.log('[HomeScreen] Medical ID profile setup incomplete. Launching forced onboarding.');
+        nav.navigate('MedicalID', { isForceOnboarding: true });
+      }
+    }
+    void checkMedicalId();
   }, []);
 
   const currentRide  = state.currentRide;

@@ -50,6 +50,8 @@ type TranslationKey =
   | 'settings.expoSdk'
   | 'settings.architecture'
   | 'settings.architectureDescription'
+  | 'settings.medicalId'
+  | 'settings.medicalIdDesc'
   | 'settings.dangerZone'
   | 'settings.dangerZoneDescription'
   | 'settings.resetAllData'
@@ -109,6 +111,8 @@ const translations: Record<AppLanguage, TranslationTable> = {
     'settings.expoSdk': 'Expo SDK',
     'settings.architecture': 'Architecture',
     'settings.architectureDescription': 'Offline-first · TypeScript strict',
+    'settings.medicalId': 'Emergency Medical ID',
+    'settings.medicalIdDesc': 'View and edit critical health details shared during SOS',
     'settings.dangerZone': 'Danger Zone',
     'settings.dangerZoneDescription': 'This permanently deletes all your contacts, ride history, and preferences. It cannot be undone.',
     'settings.resetAllData': 'Reset All App Data',
@@ -165,6 +169,8 @@ const translations: Record<AppLanguage, TranslationTable> = {
     'settings.expoSdk': 'एक्सपो SDK',
     'settings.architecture': 'आर्किटेक्चर',
     'settings.architectureDescription': 'ऑफलाइन-फर्स्ट · टाइपस्क्रिप्ट स्ट्रिक्ट',
+    'settings.medicalId': 'आपातकालीन मेडिकल ID',
+    'settings.medicalIdDesc': 'SOS के दौरान साझा किए गए अपने चिकित्सा विवरण संपादित करें',
     'settings.dangerZone': 'डेंजर ज़ोन',
     'settings.dangerZoneDescription': 'यह आपके सभी संपर्क, राइड हिस्ट्री और पसंद स्थायी रूप से मिटा देगा। इसे वापस नहीं लाया जा सकता।',
     'settings.resetAllData': 'सारा ऐप डेटा रीसेट करें',
@@ -221,6 +227,8 @@ const translations: Record<AppLanguage, TranslationTable> = {
     'settings.expoSdk': 'એક્સ્પો SDK',
     'settings.architecture': 'આર્કિટેક્ચર',
     'settings.architectureDescription': 'ઓફલાઇન-ફર્સ્ટ · ટાઇપસ્ક્રિપ્ટ સ્ટ્રિક્ટ',
+    'settings.medicalId': 'આપત્કાલીન મેડિકલ ID',
+    'settings.medicalIdDesc': 'SOS દરમિયાન શેર કરાયેલ આપત્કાલીન તબીબી વિગતો જુઓ અને સંપાદિત કરો',
     'settings.dangerZone': 'ડેન્જર ઝોન',
     'settings.dangerZoneDescription': 'આ તમારા બધા સંપર્કો, રાઇડ ઇતિહાસ અને પસંદગીઓ કાયમ માટે કાઢી નાંખશે. તેને પાછું લાવી શકાશે નહીં.',
     'settings.resetAllData': 'બધું એપ ડેટા રિસેટ કરો',

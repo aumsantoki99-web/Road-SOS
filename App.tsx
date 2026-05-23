@@ -29,6 +29,8 @@ import { LocalizationProvider } from './src/context/LocalizationContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { useAppFonts } from './src/theme/fonts';
 import { StorageService } from './src/storage/StorageService';
+import { navigationRef } from './src/navigation/navigationRef';
+
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -91,7 +93,7 @@ function AppInner(): React.JSX.Element | null {
       style={[styles.container, { backgroundColor: colors.bgPrimary }]}
       onLayout={onLayoutRootView}
     >
-      <NavigationContainer theme={navigationTheme}>
+      <NavigationContainer theme={navigationTheme} ref={navigationRef}>
         <AppNavigator />
       </NavigationContainer>
       <StatusBar style={isDark ? 'light' : 'dark'} />

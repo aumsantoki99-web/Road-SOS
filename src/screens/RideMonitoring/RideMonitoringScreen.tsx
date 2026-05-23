@@ -22,14 +22,17 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from '../../components/common/MapViewCompat';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useRideSession } from '../../hooks/useRideSession';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
+import { useLiveLocation } from '../../hooks/useLiveLocation';
 
 import { AppHeader } from '../../components/common/AppHeader';
 import { CustomButton } from '../../components/common/CustomButton';
@@ -41,7 +44,8 @@ import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 import { formatDuration, formatDistance } from '../../utils';
-import type { RideSession } from '../../types';
+import { HospitalService } from '../../services';
+import type { RideSession, Hospital } from '../../types';
 import type { RideScreenProps } from '../../navigation/types';
 
 // ─── Live indicator ───────────────────────────────────────────────────────────
@@ -115,37 +119,88 @@ function MetricCard({
 
 // ─── Crash status module ──────────────────────────────────────────────────────
 
-function CrashStatusModule(): React.JSX.Element {
+function CrashStatusModule({
+  crashDetected,
+  peakGForce,
+  peakGyroRadS,
+  isActive,
+}: {
+  crashDetected: boolean;
+  peakGForce: number;
+  peakGyroRadS: number;
+  isActive: boolean;
+}): React.JSX.Element {
   const { colors } = useTheme();
   const checkScale = useRef(new Animated.Value(0)).current;
+  const alertPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.spring(checkScale, { toValue: 1, useNativeDriver: true, speed: 8, bounciness: 12 }).start();
   }, [checkScale]);
 
+  // Pulse when crash detected
+  useEffect(() => {
+    if (!crashDetected) return;
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(alertPulse, { toValue: 0.3, duration: 400, useNativeDriver: true }),
+        Animated.timing(alertPulse, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [crashDetected, alertPulse]);
+
+  const bgColor = crashDetected ? colors.emergencySubtle : isActive ? colors.safeSubtle : colors.surfaceSecondary;
+  const borderColor = crashDetected ? colors.emergencyBorder : isActive ? colors.safeMuted : colors.surfaceBorder;
+  const iconColor = crashDetected ? colors.emergency : colors.safe;
+  const iconName = crashDetected ? 'warning' : 'shield-checkmark';
+  const statusText = crashDetected
+    ? 'Impact Detected — SOS triggered'
+    : isActive
+    ? 'Monitoring · No incidents'
+    : 'Sensors ready';
+
   return (
-    <View style={[styles.crashModule, { backgroundColor: colors.safeSubtle, borderColor: colors.safeMuted }]}>
+    <View style={[styles.crashModule, { backgroundColor: bgColor, borderColor }]}>
       <View style={styles.crashModuleLeft}>
         <Animated.View
           style={[
             styles.crashCheckWrap,
-            { backgroundColor: colors.safe, transform: [{ scale: checkScale }] },
+            { backgroundColor: iconColor, transform: [{ scale: checkScale }] },
           ]}
         >
-          <Ionicons name="shield-checkmark" size={20} color="#FFFFFF" />
+          <Animated.View style={{ opacity: crashDetected ? alertPulse : 1 }}>
+            <Ionicons name={iconName} size={20} color="#FFFFFF" />
+          </Animated.View>
         </Animated.View>
         <View style={{ flex: 1 }}>
           <Text style={[textStyles.headingSmall, { color: colors.textPrimary }]}>
             Crash Detection
           </Text>
           <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: 2 }]}>
-            No incidents detected · mock placeholder
+            {statusText}
           </Text>
         </View>
       </View>
-      <View style={[styles.mockTag, { backgroundColor: colors.infoSubtle, borderColor: colors.infoMuted }]}>
-        <Text style={[textStyles.caption, { color: colors.info, fontWeight: '700' }]}>MOCK</Text>
-      </View>
+
+      {/* Live sensor readings */}
+      {isActive && (
+        <View style={styles.sensorReadings}>
+          <View style={styles.sensorChip}>
+            <Text style={[textStyles.caption, { color: colors.textTertiary }]}>G</Text>
+            <Text style={[textStyles.labelMedium, { color: peakGForce >= 3 ? colors.emergency : colors.textPrimary }]}>
+              {peakGForce.toFixed(1)}
+            </Text>
+          </View>
+          <View style={[styles.sensorChip, { marginTop: spacing[1] }]}>
+            <Text style={[textStyles.caption, { color: colors.textTertiary }]}>ω</Text>
+            <Text style={[textStyles.labelMedium, { color: peakGyroRadS >= 3.5 ? colors.emergency : colors.textPrimary }]}>
+              {peakGyroRadS.toFixed(1)}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -211,6 +266,34 @@ export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element
   const navigation = useAppNavigation();
   const [completedSession, setCompletedSession] = useState<RideSession | null>(null);
   const [showStartSequence, setShowStartSequence] = useState(false);
+  const [viewMode, setViewMode] = useState<'cockpit' | 'map'>('cockpit');
+  const { location: liveLoc } = useLiveLocation(nav.status === 'active');
+  const [breadcrumbs, setBreadcrumbs] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [nearbyHospitals, setNearbyHospitals] = useState<Hospital[]>([]);
+
+  useEffect(() => {
+    if (nav.status !== 'active') {
+      setBreadcrumbs([]);
+      return;
+    }
+    if (liveLoc) {
+      setBreadcrumbs((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.latitude === liveLoc.latitude && last.longitude === liveLoc.longitude) {
+          return prev;
+        }
+        return [...prev, { latitude: liveLoc.latitude, longitude: liveLoc.longitude }];
+      });
+    }
+  }, [liveLoc, nav.status]);
+
+  useEffect(() => {
+    if (liveLoc && nearbyHospitals.length === 0) {
+      HospitalService.getNearby({ latitude: liveLoc.latitude, longitude: liveLoc.longitude }, { maxResults: 5 })
+        .then(setNearbyHospitals)
+        .catch((err) => console.warn('[RideMonitoringScreen] Error loading hospitals:', err));
+    }
+  }, [liveLoc]);
 
   const isIdle   = nav.status === 'idle';
   const isActive = nav.status === 'active';
@@ -307,14 +390,148 @@ export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element
         {/* ── Active / paused ride UI ──────────────────────────────────── */}
         {!isIdle && (
           <>
-            {/* Speed gauge */}
-            <View style={styles.gaugeSection}>
-              <SpeedGauge
-                speedKmh={nav.speedKmh}
-                maxSpeedKmh={120}
-                isActive={isActive}
-              />
+            {/* View switcher segment control */}
+            <View style={[styles.toggleContainer, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
+              <TouchableOpacity
+                onPress={() => setViewMode('cockpit')}
+                style={[
+                  styles.toggleButton,
+                  viewMode === 'cockpit' && { backgroundColor: colors.surfacePrimary },
+                ]}
+              >
+                <Ionicons
+                  name="speedometer-outline"
+                  size={16}
+                  color={viewMode === 'cockpit' ? colors.accent : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    textStyles.labelMedium,
+                    { color: viewMode === 'cockpit' ? colors.textPrimary : colors.textSecondary, marginLeft: spacing[1.5] }
+                  ]}
+                >
+                  Cockpit
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setViewMode('map')}
+                style={[
+                  styles.toggleButton,
+                  viewMode === 'map' && { backgroundColor: colors.surfacePrimary },
+                ]}
+              >
+                <Ionicons
+                  name="map-outline"
+                  size={16}
+                  color={viewMode === 'map' ? colors.accent : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    textStyles.labelMedium,
+                    { color: viewMode === 'map' ? colors.textPrimary : colors.textSecondary, marginLeft: spacing[1.5] }
+                  ]}
+                >
+                  Safety Map
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            {/* Gauge or Live Map Section */}
+            {viewMode === 'cockpit' ? (
+              <View style={styles.gaugeSection}>
+                <SpeedGauge
+                  speedKmh={nav.speedKmh}
+                  maxSpeedKmh={120}
+                  isActive={isActive}
+                />
+              </View>
+            ) : (
+              <View style={[styles.mapSection, { borderColor: colors.surfaceBorder }, shadows.sm]}>
+                <MapView
+                  provider={PROVIDER_DEFAULT}
+                  style={styles.rideMap}
+                  customMapStyle={isDark ? mapStyleDark : mapStyleLight}
+                  showsCompass={false}
+                  showsMyLocationButton={false}
+                  initialRegion={{
+                    latitude: liveLoc?.latitude ?? 23.0225,
+                    longitude: liveLoc?.longitude ?? 72.5714,
+                    latitudeDelta: 0.012,
+                    longitudeDelta: 0.012,
+                  }}
+                  region={liveLoc ? {
+                    latitude: liveLoc.latitude,
+                    longitude: liveLoc.longitude,
+                    latitudeDelta: 0.012,
+                    longitudeDelta: 0.012,
+                  } : undefined}
+                >
+                  {/* Breadcrumb journey path */}
+                  {breadcrumbs.length > 1 && (
+                    <Polyline
+                      coordinates={breadcrumbs}
+                      strokeColor={colors.accent}
+                      strokeWidth={4.5}
+                    />
+                  )}
+                  {breadcrumbs.length > 1 && (
+                    <Polyline
+                      coordinates={breadcrumbs}
+                      strokeColor={`${colors.accent}33`}
+                      strokeWidth={10}
+                    />
+                  )}
+
+                  {/* Dynamic user location direction marker */}
+                  {liveLoc && (
+                    <Marker
+                      coordinate={{ latitude: liveLoc.latitude, longitude: liveLoc.longitude }}
+                      flat
+                      anchor={{ x: 0.5, y: 0.5 }}
+                    >
+                      <View style={styles.markerAnchorWrap}>
+                        <View style={[styles.userPulseCircle, { borderColor: colors.accent }]} />
+                        <View
+                          style={[
+                            styles.userDirectionArrow,
+                            {
+                              backgroundColor: colors.accent,
+                              transform: [{ rotate: `${liveLoc.heading ?? 0}deg` }],
+                            },
+                          ]}
+                        >
+                          <Ionicons name="navigate" size={12} color="#000" style={styles.directionArrowIcon} />
+                        </View>
+                      </View>
+                    </Marker>
+                  )}
+
+                  {/* Nearby hospital safety anchors */}
+                  {nearbyHospitals.map((hosp) => (
+                    <Marker
+                      key={hosp.id}
+                      coordinate={{ latitude: hosp.latitude ?? 23.0225, longitude: hosp.longitude ?? 72.5714 }}
+                      title={hosp.name}
+                      description="Emergency Safety Anchor"
+                      onCalloutPress={() => navigation.navigate('HospitalDetail', { hospitalId: hosp.id })}
+                    >
+                      <View
+                        style={[
+                          styles.hospMarkerPin,
+                          {
+                            backgroundColor: hosp.isEmergencyCenter ? colors.emergency : colors.accent,
+                            borderColor: '#FFFFFF',
+                          },
+                          shadows.glowEmergency,
+                        ]}
+                      >
+                        <Ionicons name="medical" size={12} color="#FFFFFF" />
+                      </View>
+                    </Marker>
+                  ))}
+                </MapView>
+              </View>
+            )}
 
             {/* Metrics row */}
             <View style={styles.metricsRow}>
@@ -340,8 +557,13 @@ export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element
               />
             </View>
 
-            {/* Crash status module */}
-            <CrashStatusModule />
+            {/* Crash status module — live sensor data */}
+            <CrashStatusModule
+              crashDetected={nav.crashDetected}
+              peakGForce={nav.peakGForce}
+              peakGyroRadS={nav.peakGyroRadS}
+              isActive={isActive}
+            />
 
             {/* Ride controls */}
             {completedSession === null && (
@@ -409,6 +631,80 @@ export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element
     </SafeAreaView>
   );
 }
+
+// ─── Map Styles ──────────────────────────────────────────────────────────────
+
+const mapStyleDark = [
+  {
+    elementType: 'geometry',
+    stylers: [{ color: '#0d1b2a' }],
+  },
+  {
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#748cab' }],
+  },
+  {
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#0d1b2a' }],
+  },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#1b263b' }],
+  },
+  {
+    featureType: 'landscape.man_made',
+    elementType: 'geometry.fill',
+    stylers: [{ color: '#132135' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#8d99ae' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#1b263b' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#415a77' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#1f3a60' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#0b132b' }],
+  },
+];
+
+const mapStyleLight = [
+  {
+    elementType: 'geometry',
+    stylers: [{ color: '#f8fafc' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#e2e8f0' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#cbd5e1' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#e0f2fe' }],
+  },
+];
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -482,6 +778,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     borderWidth: borderWidth.thin,
   },
+  sensorReadings: {
+    alignItems: 'flex-end',
+    gap: spacing[1],
+    flexShrink: 0,
+  },
+  sensorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+  },
 
   controls:       { gap: spacing[0] },
   summarySection: { marginBottom: spacing[4] },
@@ -498,5 +804,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.xl,
+    borderWidth: borderWidth.thin,
+    padding: spacing[1],
+    marginBottom: spacing[4],
+  },
+  toggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing[2.5],
+    borderRadius: radius.lg,
+  },
+  mapSection: {
+    height: 320,
+    borderRadius: radius.xl,
+    borderWidth: borderWidth.thin,
+    overflow: 'hidden',
+    marginBottom: spacing[5],
+  },
+  rideMap: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  markerAnchorWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userPulseCircle: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+  },
+  userDirectionArrow: {
+    width: 20,
+    height: 20,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  directionArrowIcon: {
+    transform: [{ rotate: '-45deg' }],
+    marginTop: -1.5,
+    marginLeft: -0.5,
+  },
+  hospMarkerPin: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

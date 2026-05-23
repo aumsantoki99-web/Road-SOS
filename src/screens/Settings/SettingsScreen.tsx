@@ -227,11 +227,12 @@ function SensitivityControl({
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
+export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.Element {
   const { colors } = useTheme();
   const { updatePreferences } = useAppState();
   const { t, language, setLanguage } = useTranslation();
   const [isResetting, setResetting] = useState(false);
+  const [bloodGroup, setBloodGroup] = useState<string>('');
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
@@ -242,6 +243,23 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
       Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
     ]).start();
   }, [fadeAnim, slideAnim]);
+
+  useEffect(() => {
+    async function loadBloodGroup() {
+      const result = await StorageService.get<any>(STORAGE_KEYS.MEDICAL_PROFILE);
+      if (result.success && result.data?.bloodGroup) {
+        setBloodGroup(result.data.bloodGroup);
+      } else {
+        setBloodGroup('');
+      }
+    }
+    void loadBloodGroup();
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      void loadBloodGroup();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const { data: prefs, save: savePrefs } = useStorage<UserPreferences>(
     STORAGE_KEYS.PREFERENCES,
@@ -360,6 +378,16 @@ export function SettingsScreen(_props: SettingsScreenProps): React.JSX.Element {
               control="value"
               valueText="10 sec"
               onPress={() => Alert.alert('SOS Delay', 'Configurable delay coming in a future update.')}
+              showDivider
+            />
+            <SettingRow
+              label={t('settings.medicalId')}
+              description={t('settings.medicalIdDesc')}
+              icon="heart-half-sharp"
+              iconColor={colors.emergency}
+              control="value"
+              valueText={bloodGroup ? `Blood: ${bloodGroup}` : 'Tap to Setup'}
+              onPress={() => navigation.navigate('MedicalID', { isForceOnboarding: false })}
               showDivider
             />
             <SettingRow

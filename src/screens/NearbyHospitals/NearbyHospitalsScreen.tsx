@@ -3,15 +3,14 @@
  * feature/ui-polish-hospitals ✅
  *
  * Enhancements:
- *   - Premium mock map with location pin, hospital markers, radius circle
- *   - Nearest hospital gets a distinct "hero" treatment at top
- *   - Hospital cards use colored left border + emergency badge chips
- *   - Distance shown as a pill badge, ETA as secondary
- *   - Call button integrated into card footer
- *   - Emergency centres visually prioritised with red accent
+ *   - Premium live map using react-native-maps
+ *   - Centers on user's live position
+ *   - Color-coded marker pins for hospitals (red = emergency, orange = regular)
+ *   - Bounded 5km radius safety circle overlay
+ *   - Connects seamlessly to hospital detail navigation
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -20,83 +19,156 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker, Circle, PROVIDER_DEFAULT } from '../../components/common/MapViewCompat';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
+import { useLiveLocation } from '../../hooks/useLiveLocation';
 import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 import { formatDistance } from '../../utils';
-import { mockHospitals } from '../../mock';
+import { HospitalService } from '../../services';
 import type { Hospital } from '../../types';
 import type { HospitalsScreenProps } from '../../navigation/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ─── Premium map placeholder ──────────────────────────────────────────────────
+// ─── Live interactive Map component ──────────────────────────────────────────
 
-function PremiumMapPlaceholder(): React.JSX.Element {
+function LiveMap({
+  userLocation,
+  hospitals,
+  selectedHospitalId,
+  onHospitalSelect,
+}: {
+  userLocation: { latitude: number; longitude: number } | null;
+  hospitals: Hospital[];
+  selectedHospitalId?: string | null;
+  onHospitalSelect?: (hospital: Hospital) => void;
+}): React.JSX.Element {
   const { colors, isDark } = useTheme();
-  const mapBg   = isDark ? '#0D1B2A' : '#E8F4FD';
-  const roadBg  = isDark ? '#1A2E42' : '#D4EAF7';
-  const gridClr = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)';
+  const mapRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (mapRef.current && userLocation) {
+      const coords = [
+        { latitude: userLocation.latitude, longitude: userLocation.longitude },
+        ...hospitals
+          .filter((h) => h.latitude && h.longitude)
+          .map((h) => ({ latitude: h.latitude!, longitude: h.longitude! })),
+      ];
+      if (coords.length > 0) {
+        setTimeout(() => {
+          mapRef.current?.fitToCoordinates(coords, {
+            edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
+            animated: true,
+          });
+        }, 500);
+      }
+    }
+  }, [userLocation, hospitals]);
+
+  const mapStyle = isDark
+    ? [
+        { elementType: 'geometry', stylers: [{ color: '#0d1b2a' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#748cab' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#0d1b2a' }] },
+        { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#1b263b' }] },
+        { featureType: 'landscape.man_made', elementType: 'geometry.fill', stylers: [{ color: '#132135' }] },
+        { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#8d99ae' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1b263b' }] },
+        { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#415a77' }] },
+        { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1f3a60' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0b132b' }] },
+      ]
+    : [
+        { elementType: 'geometry', stylers: [{ color: '#f8fafc' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#e2e8f0' }] },
+        { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#cbd5e1' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#e0f2fe' }] },
+      ];
+
+  const defaultCenter = userLocation || { latitude: 23.0225, longitude: 72.5714 };
 
   return (
-    <View style={[styles.mapWrap, { backgroundColor: mapBg }]}>
-      {/* Road grid */}
-      <View style={[styles.road, styles.roadH1, { backgroundColor: roadBg }]} />
-      <View style={[styles.road, styles.roadH2, { backgroundColor: roadBg }]} />
-      <View style={[styles.road, styles.roadV1, { backgroundColor: roadBg }]} />
-      <View style={[styles.road, styles.roadV2, { backgroundColor: roadBg }]} />
+    <View style={[styles.mapWrap, { backgroundColor: isDark ? '#0D1B2A' : '#E8F4FD' }]}>
+      <MapView
+        ref={mapRef}
+        provider={PROVIDER_DEFAULT}
+        style={StyleSheet.absoluteFillObject}
+        customMapStyle={mapStyle}
+        showsUserLocation={true}
+        showsCompass={false}
+        showsMyLocationButton={false}
+        initialRegion={{
+          latitude: defaultCenter.latitude,
+          longitude: defaultCenter.longitude,
+          latitudeDelta: 0.03,
+          longitudeDelta: 0.03,
+        }}
+      >
+        {userLocation && (
+          <Circle
+            center={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
+            radius={5000} // 5km search radius
+            fillColor={isDark ? 'rgba(74, 140, 171, 0.08)' : 'rgba(14, 116, 144, 0.05)'}
+            strokeColor={colors.accent}
+            strokeWidth={1.5}
+          />
+        )}
 
-      {/* User radius circle */}
-      <View style={[styles.radiusCircle, { borderColor: `${colors.accent}40` }]} />
-      <View style={[styles.radiusCircleInner, { borderColor: `${colors.accent}25` }]} />
+        {hospitals.map((h) => {
+          if (!h.latitude || !h.longitude) return null;
+          const isEmergency = h.isEmergencyCenter;
+          const pinColor = isEmergency ? colors.emergency : '#F59E0B';
+          const isSelected = selectedHospitalId === h.id;
 
-      {/* Hospital pins */}
-      <View style={[styles.pinWrap, { top: '20%', left: '18%' }]}>
-        <View style={[styles.pinHead, { backgroundColor: colors.emergency }]}>
-          <Ionicons name="medical" size={9} color="#FFF" />
-        </View>
-        <View style={[styles.pinStem, { backgroundColor: colors.emergency }]} />
-      </View>
-      <View style={[styles.pinWrap, { top: '48%', left: '62%' }]}>
-        <View style={[styles.pinHead, { backgroundColor: '#F59E0B' }]}>
-          <Ionicons name="medical" size={9} color="#FFF" />
-        </View>
-        <View style={[styles.pinStem, { backgroundColor: '#F59E0B' }]} />
-      </View>
-      <View style={[styles.pinWrap, { top: '15%', left: '72%' }]}>
-        <View style={[styles.pinHead, { backgroundColor: '#F59E0B' }]}>
-          <Ionicons name="medical" size={9} color="#FFF" />
-        </View>
-        <View style={[styles.pinStem, { backgroundColor: '#F59E0B' }]} />
-      </View>
-
-      {/* User location */}
-      <View style={styles.userLocation}>
-        <View style={[styles.userPulse, { borderColor: colors.accent }]} />
-        <View style={[styles.userDot, { backgroundColor: colors.accent }]} />
-      </View>
+          return (
+            <Marker
+              key={h.id}
+              coordinate={{ latitude: h.latitude, longitude: h.longitude }}
+              title={h.name}
+              description={h.isEmergencyCenter ? '24/7 Emergency Wing' : 'Clinic / Hospital'}
+              onCalloutPress={() => onHospitalSelect && onHospitalSelect(h)}
+            >
+              <View
+                style={[
+                  styles.markerHospWrap,
+                  {
+                    backgroundColor: pinColor,
+                    borderColor: '#FFFFFF',
+                    transform: [{ scale: isSelected ? 1.25 : 1 }],
+                  },
+                  isEmergency ? shadows.glowEmergency : shadows.sm,
+                ]}
+              >
+                <Ionicons name="medical" size={14} color="#FFFFFF" />
+              </View>
+            </Marker>
+          );
+        })}
+      </MapView>
 
       {/* Gradient fade bottom */}
       <LinearGradient
-        colors={['transparent', mapBg]}
+        colors={['transparent', isDark ? '#0D1B2A' : '#E8F4FD']}
         style={styles.mapFade}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"
       />
 
-      {/* SDK label */}
+      {/* Dynamic Status / SDK label */}
       <View style={[styles.mapLabel, { backgroundColor: colors.overlay }]}>
-        <Ionicons name="map-outline" size={12} color={colors.textSecondary} />
+        <Ionicons name="navigate-circle-outline" size={12} color={colors.textSecondary} />
         <Text style={[textStyles.caption, { color: colors.textSecondary, marginLeft: spacing[1] }]}>
-          Map placeholder · Google Maps SDK ready
+          Live Tracking Map · 5km Search Radius Active
         </Text>
       </View>
     </View>
@@ -268,10 +340,80 @@ function HospitalListCard({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.Element {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const nav = useAppNavigation();
+  const { location: liveLoc } = useLiveLocation(true);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [locationLabel, setLocationLabel] = useState('Locating…');
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [isLiveData, setIsLiveData] = useState(false);
 
-  const sorted = [...mockHospitals].sort((a, b) => {
+  // Fetch using best available location — real GPS or fallback
+  const fetchHospitals = useCallback(async (lat: number, lon: number): Promise<void> => {
+    setLoading(true);
+    setLoadError(false);
+    setLocationLabel(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+    try {
+      const data = await HospitalService.getNearby(
+        { latitude: lat, longitude: lon },
+        { maxResults: 10 },
+      );
+      setHospitals(data);
+      setIsLiveData(HospitalService.isLiveData);
+    } catch (error) {
+      console.warn('[NearbyHospitalsScreen] Failed to load hospitals:', error);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // On mount: get best location immediately without waiting for liveLoc
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    void (async () => {
+      try {
+        const loc = await HospitalService.getUserLocation();
+        await fetchHospitals(loc.latitude, loc.longitude);
+      } catch (err) {
+        console.warn('[NearbyHospitalsScreen] Initial location fetch failed:', err);
+        setLoading(false);
+        setLoadError(true);
+      }
+    })();
+  }, [fetchHospitals]);
+
+  // If liveLoc updates significantly (>500m shift), refresh results
+  const lastFetchLocRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  useEffect(() => {
+    if (!liveLoc) return;
+    const last = lastFetchLocRef.current;
+    if (!last) {
+      lastFetchLocRef.current = { latitude: liveLoc.latitude, longitude: liveLoc.longitude };
+      void fetchHospitals(liveLoc.latitude, liveLoc.longitude);
+      return;
+    }
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const R = 6371000;
+    const dLat = toRad(liveLoc.latitude - last.latitude);
+    const dLon = toRad(liveLoc.longitude - last.longitude);
+    const dist =
+      R * 2 * Math.atan2(
+        Math.sqrt(Math.sin(dLat / 2) ** 2 + Math.cos(toRad(last.latitude)) * Math.cos(toRad(liveLoc.latitude)) * Math.sin(dLon / 2) ** 2),
+        Math.sqrt(1 - (Math.sin(dLat / 2) ** 2 + Math.cos(toRad(last.latitude)) * Math.cos(toRad(liveLoc.latitude)) * Math.sin(dLon / 2) ** 2)),
+      );
+    if (dist > 500) {
+      lastFetchLocRef.current = { latitude: liveLoc.latitude, longitude: liveLoc.longitude };
+      void fetchHospitals(liveLoc.latitude, liveLoc.longitude);
+    }
+  }, [liveLoc, fetchHospitals]);
+
+  const sorted = [...hospitals].sort((a, b) => {
     if (a.isEmergencyCenter && !b.isEmergencyCenter) return -1;
     if (!a.isEmergencyCenter && b.isEmergencyCenter) return 1;
     return a.distanceKm - b.distanceKm;
@@ -279,6 +421,7 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
 
   const nearest = sorted[0];
   const rest    = sorted.slice(1);
+  const maxDistance = Math.max(...sorted.map((h) => h.distanceKm), 1);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
@@ -288,62 +431,120 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
           <Text style={[textStyles.displaySmall, { color: colors.textPrimary }]}>
             Nearby Hospitals
           </Text>
-          <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: 2 }]}>
-            {sorted.length} found · mock location
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: 2 }}>
+            <Text style={[textStyles.caption, { color: colors.textTertiary }]}>
+              {loading ? 'Searching…' : `${sorted.length} found`}
+            </Text>
+            {!loading && (
+              <View style={[
+                styles.dataBadge,
+                { backgroundColor: isLiveData ? colors.safeSubtle : colors.infoSubtle,
+                  borderColor: isLiveData ? colors.safeMuted : colors.infoMuted },
+              ]}>
+                <View style={[styles.dataDot, { backgroundColor: isLiveData ? colors.safe : colors.info }]} />
+                <Text style={[textStyles.caption, { color: isLiveData ? colors.safeText : colors.infoText, fontWeight: '700' }]}>
+                  {isLiveData ? 'LIVE' : 'DEMO'}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
         <View style={[styles.locationChip, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
           <Ionicons name="location" size={13} color={colors.accent} />
           <Text style={[textStyles.caption, { color: colors.textSecondary, marginLeft: spacing[1] }]}>
-            Ahmedabad
+            {locationLabel}
           </Text>
         </View>
       </View>
 
-      <FlatList
-        data={rest}
-        keyExtractor={(h) => h.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.list}
-        ItemSeparatorComponent={() => <View style={{ height: spacing[3] }} />}
-        ListHeaderComponent={
-          <>
-            <PremiumMapPlaceholder />
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={[textStyles.bodySmall, { color: colors.textTertiary, marginTop: spacing[3] }]}>
+            Finding nearby facilities…
+          </Text>
+        </View>
+      ) : loadError ? (
+        <View style={styles.loadingWrap}>
+          <Ionicons name="wifi-outline" size={48} color={colors.textTertiary} />
+          <Text style={[textStyles.headingSmall, { color: colors.textPrimary, marginTop: spacing[4] }]}>
+            Could not load hospitals
+          </Text>
+          <Text style={[textStyles.bodySmall, { color: colors.textTertiary, marginTop: spacing[2], textAlign: 'center' }]}>
+            Check your internet connection and location permission.
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              void HospitalService.getUserLocation().then((loc) =>
+                fetchHospitals(loc.latitude, loc.longitude)
+              );
+            }}
+            style={[styles.retryBtn, { backgroundColor: colors.accent }]}
+          >
+            <Ionicons name="refresh" size={16} color="#fff" />
+            <Text style={[textStyles.labelMedium, { color: '#fff', marginLeft: spacing[2] }]}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={rest}
+          keyExtractor={(h) => h.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.list}
+          ItemSeparatorComponent={() => <View style={{ height: spacing[3] }} />}
+          ListHeaderComponent={
+            <>
+              <LiveMap
+                userLocation={liveLoc}
+                hospitals={sorted}
+                selectedHospitalId={selectedHospitalId}
+                onHospitalSelect={(hosp) => {
+                  setSelectedHospitalId(hosp.id);
+                  nav.navigate('HospitalDetail', { hospitalId: hosp.id });
+                }}
+              />
 
-            {/* Nearest hero */}
-            {nearest !== undefined && (
-              <>
-                <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginTop: spacing[5], marginBottom: spacing[3] }]}>
-                  CLOSEST TO YOU
-                </Text>
-                <NearestHospitalHero
-                  hospital={nearest}
-                  onPress={() => nav.navigate('HospitalDetail', { hospitalId: nearest.id })}
-                />
-                <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginTop: spacing[6], marginBottom: spacing[3] }]}>
-                  OTHER HOSPITALS
-                </Text>
-              </>
-            )}
-          </>
-        }
-        renderItem={({ item, index }) => (
-          <HospitalListCard
-            hospital={item}
-            index={index}
-            maxDistance={Math.max(...rest.map((h) => h.distanceKm))}
-            onPress={() => nav.navigate('HospitalDetail', { hospitalId: item.id })}
-          />
-        )}
-        ListFooterComponent={
-          <View style={[styles.footer, { backgroundColor: colors.infoSubtle, borderColor: colors.infoMuted }]}>
-            <Ionicons name="information-circle-outline" size={14} color={colors.info} />
-            <Text style={[textStyles.caption, { color: colors.infoText, marginLeft: spacing[2], flex: 1 }]}>
-              Distances are mock data. Connect HospitalService + Google Places API for real-time results.
-            </Text>
-          </View>
-        }
-      />
+              {/* Nearest hero */}
+              {nearest !== undefined && (
+                <>
+                  <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginTop: spacing[5], marginBottom: spacing[3] }]}>
+                    CLOSEST TO YOU
+                  </Text>
+                  <NearestHospitalHero
+                    hospital={nearest}
+                    onPress={() => {
+                      setSelectedHospitalId(nearest.id);
+                      nav.navigate('HospitalDetail', { hospitalId: nearest.id });
+                    }}
+                  />
+                  <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginTop: spacing[6], marginBottom: spacing[3] }]}>
+                    OTHER HOSPITALS
+                  </Text>
+                </>
+              )}
+            </>
+          }
+          renderItem={({ item, index }) => (
+            <HospitalListCard
+              hospital={item}
+              index={index}
+              maxDistance={maxDistance}
+              onPress={() => {
+                setSelectedHospitalId(item.id);
+                nav.navigate('HospitalDetail', { hospitalId: item.id });
+              }}
+            />
+          )}
+          ListFooterComponent={
+            <View style={[styles.footer, { backgroundColor: colors.infoSubtle, borderColor: colors.infoMuted }]}>
+              <Ionicons name="information-circle-outline" size={14} color={colors.info} />
+              <Text style={[textStyles.caption, { color: colors.infoText, marginLeft: spacing[2], flex: 1 }]}>
+                Results come from OpenStreetMap Overpass when online, with fallback data for demos.
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -354,6 +555,34 @@ const MAP_HEIGHT = 200;
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: layout.screenHorizontal,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[3],
+    borderRadius: radius.full,
+    marginTop: spacing[5],
+  },
+  dataBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[2],
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    borderWidth: borderWidth.thin,
+    gap: spacing[1],
+  },
+  dataDot: {
+    width: 5,
+    height: 5,
+    borderRadius: radius.full,
+  },
   list: { paddingHorizontal: layout.screenHorizontal, paddingBottom: spacing[16] },
 
   pageHeader: {
@@ -380,59 +609,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  road: { position: 'absolute', borderRadius: 2 },
-  roadH1: { top: '38%', left: 0, right: 0, height: 10 },
-  roadH2: { top: '68%', left: 0, right: 0, height: 7 },
-  roadV1: { left: '30%', top: 0, bottom: 0, width: 10 },
-  roadV2: { left: '65%', top: 0, bottom: 0, width: 7 },
-
-  radiusCircle: {
-    position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    borderWidth: 1.5,
-    bottom: '15%',
-    left: '40%',
-    marginLeft: -65,
-  },
-  radiusCircleInner: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 1,
-    bottom: '22%',
-    left: '40%',
-    marginLeft: -40,
-  },
-
-  pinWrap: { position: 'absolute', alignItems: 'center' },
-  pinHead: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pinStem: { width: 2, height: 8, marginTop: 1 },
-
-  userLocation: {
-    position: 'absolute',
-    bottom: '28%',
-    left: '42%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userPulse: {
-    position: 'absolute',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-  },
-  userDot: { width: 12, height: 12, borderRadius: 6 },
-
   mapFade: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
@@ -535,5 +711,13 @@ const styles = StyleSheet.create({
     borderWidth: borderWidth.thin,
     padding: spacing[3],
     marginTop: spacing[5],
+  },
+  markerHospWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

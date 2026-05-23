@@ -28,6 +28,7 @@
 
 import { QueueService } from '../storage/QueueService';
 import type { EmergencyContact, CrashSensitivity } from '../types';
+import * as SMS from 'expo-sms';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ export interface SOSResult {
   success: boolean;
   queued: boolean;
   alertId: string;
+  smsOpened?: boolean;
   error?: string;
 }
 
@@ -86,13 +88,32 @@ export const EmergencyService = {
     // Queue for offline safety — sent when online
     const queued = await QueueService.enqueue('sos', payload as unknown as Record<string, unknown>);
 
-    // TODO: attempt immediate send if online
+    const phoneNumbers = contacts
+      .map((contact) => contact.phone.trim())
+      .filter((phone) => phone.length > 0);
+
+    let smsOpened = false;
+    if (phoneNumbers.length > 0) {
+      try {
+        const smsAvailable = await SMS.isAvailableAsync();
+        if (smsAvailable) {
+          const message = EmergencyService.buildAlertMessage('RideSafe user', location, triggeredBy);
+          await SMS.sendSMSAsync(phoneNumbers, message);
+          smsOpened = true;
+        }
+      } catch (error) {
+        console.warn('[EmergencyService] SMS composer failed:', error);
+      }
+    }
+
+    // TODO: attempt immediate backend send if online
     // const result = await fetch('/api/sos', { method: 'POST', body: JSON.stringify(payload) });
 
     return {
       success: true, // mock — real success requires API confirmation
       queued: true,
       alertId: queued.id,
+      smsOpened,
     };
   },
 
