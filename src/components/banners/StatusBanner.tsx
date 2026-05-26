@@ -147,6 +147,7 @@ export function StatusBanner({
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel={action.label}
+          style={styles.actionBtn}
         >
           <Text style={[textStyles.labelMedium, { color: c.icon, marginLeft: spacing[3] }]}>
             {action.label}
@@ -188,6 +189,15 @@ const styles = StyleSheet.create({
   },
   dismissBtn: {
     marginLeft: spacing[2],
+    flexShrink: 0,
+    minWidth: layout.minTouchTarget,
+    minHeight: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBtn: {
+    minHeight: layout.minTouchTarget,
+    justifyContent: 'center',
     flexShrink: 0,
   },
 });

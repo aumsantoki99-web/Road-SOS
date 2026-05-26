@@ -136,13 +136,13 @@ function ActionTile({ icon, label, sublabel, color, onPress, badge, hero = false
 
         <Text style={[
           hero ? textStyles.headingMedium : textStyles.headingSmall,
-          { color: colors.textPrimary, marginTop: spacing[2] }
-        ]} numberOfLines={1}>
+          { color: colors.textPrimary, marginTop: hero ? 0 : spacing[2] }
+        ]} numberOfLines={hero ? 1 : 2}>
           {label}
         </Text>
 
         {sublabel !== undefined && (
-          <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: 2 }]} numberOfLines={1}>
+          <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: 2 }]} numberOfLines={hero ? 1 : 2}>
             {sublabel}
           </Text>
         )}
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing[5],
     overflow: 'hidden',
     position: 'relative',
-    minHeight: 110,
+    minHeight: 116,
   },
   actionTileHero: {
     minHeight: 90,
@@ -612,11 +612,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing[3],
     right: spacing[3],
-    width: 20,
-    height: 20,
+    minWidth: 22,
+    height: 22,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing[1],
   },
 
   // Safety score
@@ -631,6 +632,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing[4],
+    gap: spacing[3],
   },
   scoreBadge: {
     flexDirection: 'row',

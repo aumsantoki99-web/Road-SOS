@@ -155,6 +155,10 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
               Sending emergency alert to your contacts
             </Text>
           </View>
+          <View style={[styles.liveBadge, { backgroundColor: colors.emergencySubtle, borderColor: colors.emergencyBorder }]}>
+            <View style={[styles.liveDot, { backgroundColor: colors.emergency }]} />
+            <Text style={[textStyles.labelCaps, { color: colors.emergencyText }]}>LIVE</Text>
+          </View>
         </View>
 
         {/* ── Countdown ring ─────────────────────────────────────────── */}
@@ -284,6 +288,20 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.full,
+    borderWidth: borderWidth.thin,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    gap: spacing[1],
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.full,
   },
   countdownWrap: {
     width: RING_SIZE,

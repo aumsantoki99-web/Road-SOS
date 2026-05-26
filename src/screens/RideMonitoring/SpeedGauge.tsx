@@ -11,7 +11,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
@@ -55,11 +55,11 @@ export function SpeedGauge({
 
   // Animate speed value changes
   useEffect(() => {
-    Animated.spring(animatedSpeed, {
+    Animated.timing(animatedSpeed, {
       toValue: isActive ? Math.min(speedKmh, maxSpeedKmh) : 0,
       useNativeDriver: false,
-      speed: 8,
-      bounciness: 2,
+      duration: 720,
+      easing: Easing.out(Easing.cubic),
     }).start();
   }, [speedKmh, isActive, animatedSpeed, maxSpeedKmh]);
 
@@ -94,9 +94,18 @@ export function SpeedGauge({
     extrapolate: 'clamp',
   });
 
-  const GAUGE_SIZE = 220;
-  const STROKE     = 14;
-  const HALF       = GAUGE_SIZE / 2;
+  const trailRotation = animatedSpeed.interpolate({
+    inputRange:  [0, maxSpeedKmh],
+    outputRange: ['-192deg', '-12deg'],
+    extrapolate: 'clamp',
+  });
+
+  const GAUGE_SIZE    = 220;
+  const TRACK_STROKE  = 14;
+  const ACTIVE_STROKE = 10;
+  const HALF          = GAUGE_SIZE / 2;
+  const ARC_INSET     = (TRACK_STROKE - ACTIVE_STROKE) / 2;
+  const ACTIVE_SIZE   = GAUGE_SIZE - ARC_INSET * 2;
 
   return (
     <View style={styles.container}>
@@ -106,10 +115,10 @@ export function SpeedGauge({
           styles.gaugeOuter,
           {
             width: GAUGE_SIZE,
-            height: HALF + STROKE,
+            height: HALF + TRACK_STROKE,
             borderTopLeftRadius: HALF,
             borderTopRightRadius: HALF,
-            borderWidth: STROKE,
+            borderWidth: TRACK_STROKE,
             borderColor: colors.surfaceSecondary,
           },
         ]}
@@ -120,12 +129,32 @@ export function SpeedGauge({
             style={[
               styles.halfArc,
               {
-                width: GAUGE_SIZE,
-                height: GAUGE_SIZE,
-                borderRadius: HALF,
-                borderWidth: STROKE,
+                width: ACTIVE_SIZE,
+                height: ACTIVE_SIZE,
+                borderRadius: ACTIVE_SIZE / 2,
+                borderWidth: ACTIVE_STROKE,
                 borderColor: speedColor,
-                right: 0,
+                opacity: isActive ? 0.2 : 0.08,
+                top: ARC_INSET,
+                right: ARC_INSET,
+                borderRightColor: 'transparent',
+                borderBottomColor: 'transparent',
+                transform: [{ rotate: trailRotation }],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.halfArc,
+              {
+                width: ACTIVE_SIZE,
+                height: ACTIVE_SIZE,
+                borderRadius: ACTIVE_SIZE / 2,
+                borderWidth: ACTIVE_STROKE,
+                borderColor: speedColor,
+                opacity: isActive ? 0.82 : 0.42,
+                top: ARC_INSET,
+                right: ARC_INSET,
                 borderRightColor: 'transparent',
                 borderBottomColor: 'transparent',
                 transform: [{ rotate: arcRotation }],

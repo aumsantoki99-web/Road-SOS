@@ -76,6 +76,10 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
           <Text style={[textStyles.displayMedium, styles.title]}>
             SOS Dispatched
           </Text>
+          <View style={styles.dispatchBadge}>
+            <View style={styles.dispatchDot} />
+            <Text style={styles.dispatchBadgeText}>LIVE ALERT ACTIVE</Text>
+          </View>
           <Text style={[textStyles.bodyLarge, styles.subtitle]}>
             Emergency alerts have been sent to your primary contacts and public safety.
           </Text>
@@ -111,6 +115,8 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
               { backgroundColor: '#FFFFFF', opacity: pressed ? 0.9 : 1.0 }
             ]}
             onPress={onHome}
+            accessibilityRole="button"
+            accessibilityLabel="Return to home"
           >
             <Ionicons name="home" size={20} color="#000000" style={{ marginRight: spacing[2] }} />
             <Text style={styles.homeBtnText}>RETURN TO HOME</Text>
@@ -165,6 +171,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 16,
+  },
+  dispatchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(239,68,68,0.16)',
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    marginBottom: spacing[3],
+  },
+  dispatchDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    marginRight: spacing[2],
+  },
+  dispatchBadgeText: {
+    color: '#FCA5A5',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.1,
   },
   statusCard: {
     width: '100%',

@@ -134,6 +134,8 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
               { backgroundColor: colors.safe, opacity: pressed ? 0.9 : 1.0 }
             ]}
             onPress={onImFine}
+            accessibilityRole="button"
+            accessibilityLabel="I'm okay, cancel SOS"
           >
             <Ionicons name="checkmark-circle-outline" size={24} color="#FFFFFF" style={{ marginRight: spacing[2] }} />
             <Text style={styles.cancelBtnText}>I'M OKAY, CANCEL SOS</Text>
