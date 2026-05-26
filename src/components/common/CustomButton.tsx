@@ -58,7 +58,7 @@ export interface CustomButtonProps {
 // ─── Size config ──────────────────────────────────────────────────────────────
 
 const SIZE_CONFIG: Record<ButtonSize, { height: number; paddingHorizontal: number; iconSize: number }> = {
-  sm: { height: 38,  paddingHorizontal: spacing[4], iconSize: 16 },
+  sm: { height: layout.minTouchTarget, paddingHorizontal: spacing[4], iconSize: 16 },
   md: { height: 50,  paddingHorizontal: spacing[6], iconSize: 18 },
   lg: { height: 58,  paddingHorizontal: spacing[8], iconSize: 20 },
 };
@@ -262,6 +262,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 1,
   },
   iconLeft: {
     marginRight: spacing[2],

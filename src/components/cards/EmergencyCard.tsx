@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dismissBtn: {
-    width: 28,
-    height: 28,
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',

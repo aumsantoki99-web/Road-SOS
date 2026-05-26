@@ -174,7 +174,7 @@ export function FloatingSOSButton({
           />
           <Ionicons name="shield-checkmark" size={22} color="rgba(255,255,255,0.85)" />
           <Text style={styles.sosLabel}>SOS</Text>
-          <Text style={styles.sosSubLabel}>HOLD FOR HELP</Text>
+          <Text style={styles.sosSubLabel}>TAP FOR HELP</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -222,6 +222,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.70)',
     fontSize: 7,
     fontWeight: '700',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
   },
 });
