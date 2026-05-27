@@ -31,6 +31,7 @@ import { useAppState } from '../../context/AppStateContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { useStorage } from '../../hooks/useStorage';
 import { StorageService } from '../../storage/StorageService';
+import { LanguageSelectionModal } from '../../components/common/LanguageSelectionModal';
 
 import { SettingRow } from '../../components/common/SettingRow';
 import { CustomButton } from '../../components/common/CustomButton';
@@ -233,6 +234,7 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
   const { t, language, setLanguage } = useTranslation();
   const [isResetting, setResetting] = useState(false);
   const [bloodGroup, setBloodGroup] = useState<string>('');
+  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
@@ -338,19 +340,7 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
               iconColor={colors.info}
               control="value"
               valueText={languageOptions.find((option) => option.value === language)?.label}
-              onPress={() => {
-                Alert.alert(
-                  t('settings.language'),
-                  t('settings.languageDescription'),
-                  languageOptions.map((option) => ({
-                    text: option.label,
-                    onPress: () => {
-                      void updatePref('language', option.value);
-                      void setLanguage(option.value);
-                    },
-                  })),
-                );
-              }}
+              onPress={() => setIsLanguageModalVisible(true)}
               showDivider={false}
             />
           </SettingsSection>
@@ -512,6 +502,10 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
           <View style={{ height: spacing[16] }} />
         </Animated.View>
       </Animated.ScrollView>
+      <LanguageSelectionModal
+        visible={isLanguageModalVisible}
+        onClose={() => setIsLanguageModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

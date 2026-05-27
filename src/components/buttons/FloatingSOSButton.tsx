@@ -1,13 +1,9 @@
 /**
- * FloatingSOSButton — Hero SOS emergency button
+ * FloatingSOSButton — Circular premium SOS button
  * feature/accessibility ✅ — screen reader, role, live region
- *
- * Three concentric pulse rings + crimson gradient core.
- * The most accessible element in the app — must be reachable
- * with VoiceOver / TalkBack at all times.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
@@ -17,112 +13,54 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-
-import { useTheme } from '../../context/ThemeContext';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { gradients } from '../../theme/colors';
 import { radius } from '../../theme/spacing';
-import { shadows } from '../../theme/shadows';
-
-const CORE_SIZE   = 100;
-const RING_1_SIZE = 136;
-const RING_2_SIZE = 172;
-const RING_3_SIZE = 208;
 
 export interface FloatingSOSButtonProps {
   onPress: () => void;
   disabled?: boolean;
-}
-
-interface PulseRingProps {
-  size: number;
-  delay: number;
-  color: string;
-  paused: boolean;
-}
-
-function PulseRing({ size, delay, color, paused }: PulseRingProps): React.JSX.Element {
-  const scale   = useRef(new Animated.Value(0.85)).current;
-  const opacity = useRef(new Animated.Value(0.5)).current;
-  const animRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    if (paused) {
-      animRef.current?.stop();
-      Animated.parallel([
-        Animated.timing(scale,   { toValue: 0.85, duration: 200, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.5,  duration: 200, useNativeDriver: true }),
-      ]).start();
-      return;
-    }
-    animRef.current = Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(scale,   { toValue: 1.15, duration: 1200, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0,    duration: 1200, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scale,   { toValue: 0.85, duration: 0, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0.5,  duration: 0, useNativeDriver: true }),
-        ]),
-      ]),
-    );
-    animRef.current.start();
-    return () => animRef.current?.stop();
-  }, [paused, delay, scale, opacity]);
-
-  return (
-    <Animated.View
-      style={[
-        styles.ring,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderColor: color,
-          transform: [{ scale }],
-          opacity,
-        },
-      ]}
-      // Decorative — hidden from screen readers
-      accessible={false}
-      importantForAccessibility="no"
-    />
-  );
+  size?: 'default' | 'hero';
 }
 
 export function FloatingSOSButton({
   onPress,
   disabled = false,
+  size = 'default',
 }: FloatingSOSButtonProps): React.JSX.Element {
-  const { colors, isNight } = useTheme();
-  const prefersReducedMotion = useReducedMotion();
+  const buttonSize = size === 'hero' ? 146 : 116;
+  const outerSize = size === 'hero' ? 184 : 156;
   const buttonScale = useRef(new Animated.Value(1)).current;
-
-  const ringColor      = colors.emergency;
-  const gradientColors = isNight ? gradients.night.colors : gradients.emergency.colors;
-
-  // Respect system Reduce Motion — pause all decorative pulse rings
-  const ringsPaused = disabled || prefersReducedMotion;
+  const buttonLift = useRef(new Animated.Value(0)).current;
 
   function handlePressIn(): void {
-    Animated.spring(buttonScale, {
-      toValue: 0.91,
-      useNativeDriver: true,
-      speed: 80,
-      bounciness: 0,
-    }).start();
+    Animated.parallel([
+      Animated.spring(buttonScale, {
+        toValue: 0.955,
+        useNativeDriver: true,
+        speed: 80,
+        bounciness: 0,
+      }),
+      Animated.timing(buttonLift, {
+        toValue: 2,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }
 
   function handlePressOut(): void {
-    Animated.spring(buttonScale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 12,
-    }).start();
+    Animated.parallel([
+      Animated.spring(buttonScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 10,
+      }),
+      Animated.timing(buttonLift, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }
 
   function handlePress(): void {
@@ -135,26 +73,26 @@ export function FloatingSOSButton({
 
   return (
     <View
-      style={styles.container}
-      // Group the whole button as one accessible element
+      style={[styles.container, { width: outerSize, height: outerSize, minWidth: outerSize, minHeight: outerSize }]}
+      testID={`sos-button-${size}`}
       accessible
       accessibilityRole="button"
       accessibilityLabel="SOS Emergency Button"
       accessibilityHint="Opens emergency alert confirmation. Alert sends automatically after 10 seconds."
       accessibilityState={{ disabled }}
     >
-      {/* Decorative pulse rings — hidden from assistive tech */}
-      <PulseRing size={RING_3_SIZE} delay={400}  color={ringColor} paused={ringsPaused} />
-      <PulseRing size={RING_2_SIZE} delay={200}  color={ringColor} paused={ringsPaused} />
-      <PulseRing size={RING_1_SIZE} delay={0}    color={ringColor} paused={ringsPaused} />
-
       <Animated.View
         style={[
-          styles.coreWrapper,
-          shadows.glowEmergency,
-          { transform: [{ scale: buttonScale }] },
+          styles.outerShell,
+          {
+            width: buttonSize,
+            height: buttonSize,
+          },
+          {
+            transform: [{ scale: buttonScale }, { translateY: buttonLift }],
+            opacity: disabled ? 0.55 : 1,
+          },
         ]}
-        // Inner button is not independently focusable — parent View handles it
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
       >
@@ -164,17 +102,26 @@ export function FloatingSOSButton({
           onPressOut={disabled ? undefined : handlePressOut}
           activeOpacity={1}
           disabled={disabled}
-          style={styles.core}
+          style={styles.touchLayer}
+          hitSlop={8}
         >
+          <View style={[styles.innerPlate, { width: buttonSize - 10, height: buttonSize - 10 }]}>
+            <LinearGradient
+              colors={['#FF6A6A', '#EF4444', '#DC2626', '#991B1B']}
+              style={styles.core}
+              start={{ x: 0.25, y: 0 }}
+              end={{ x: 0.75, y: 1 }}
+            >
+              <Text style={[styles.sosLabel, size === 'hero' && styles.sosLabelHero]}>SOS</Text>
+            </LinearGradient>
+          </View>
           <LinearGradient
-            colors={gradientColors}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0.2, y: 0 }}
-            end={{ x: 0.8, y: 1 }}
+            pointerEvents="none"
+            colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0)']}
+            start={{ x: 0.1, y: 0.1 }}
+            end={{ x: 0.8, y: 0.8 }}
+            style={[styles.highlight, { height: buttonSize * 0.42 }]}
           />
-          <Ionicons name="shield-checkmark" size={22} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.sosLabel}>SOS</Text>
-          <Text style={styles.sosSubLabel}>TAP FOR HELP</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -183,45 +130,77 @@ export function FloatingSOSButton({
 
 const styles = StyleSheet.create({
   container: {
-    width: RING_3_SIZE,
-    height: RING_3_SIZE,
+    width: 156,
+    height: 156,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    // Ensure minimum touch target is well exceeded
-    minWidth: RING_3_SIZE,
-    minHeight: RING_3_SIZE,
+    minWidth: 156,
+    minHeight: 156,
   },
-  ring: {
-    position: 'absolute',
-    borderWidth: 1.5,
-  },
-  coreWrapper: {
-    width: CORE_SIZE,
-    height: CORE_SIZE,
+  outerShell: {
+    width: 116,
+    height: 116,
     borderRadius: radius.full,
-    overflow: 'hidden',
+    backgroundColor: '#F5F6F7',
+    borderWidth: 2,
+    borderColor: '#D4D4D8',
+    shadowColor: '#000000',
+    shadowOffset: { width: 4, height: 12 },
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
+    elevation: 12,
   },
-  core: {
-    width: CORE_SIZE,
-    height: CORE_SIZE,
+  touchLayer: {
+    width: '100%',
+    height: '100%',
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
     overflow: 'hidden',
+  },
+  innerPlate: {
+    width: 106,
+    height: 106,
+    borderRadius: radius.full,
+    backgroundColor: '#FFE6E6',
+    padding: 8,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: -3, height: -8 },
+    shadowOpacity: 0.72,
+    shadowRadius: 8,
+  },
+  core: {
+    flex: 1,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#7A1111',
+    shadowColor: '#4C0519',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.34,
+    shadowRadius: 7,
+    elevation: 6,
+  },
+  highlight: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    right: 8,
+    height: 48,
+    borderRadius: radius.full,
   },
   sosLabel: {
     color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 32,
     fontWeight: '900',
-    letterSpacing: 3,
-    lineHeight: 24,
+    letterSpacing: 0.6,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  sosSubLabel: {
-    color: 'rgba(255,255,255,0.70)',
-    fontSize: 7,
-    fontWeight: '700',
-    letterSpacing: 1.2,
+  sosLabelHero: {
+    fontSize: 40,
   },
 });

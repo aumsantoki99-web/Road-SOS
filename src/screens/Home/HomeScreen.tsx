@@ -248,7 +248,7 @@ function ActivityTimeline({ rides }: { rides: typeof mockRideHistory }): React.J
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export function HomeScreen(_props: HomeScreenProps): React.JSX.Element {
+export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
   const { colors, isDark, isNight } = useTheme();
   const { t } = useTranslation();
   const { state } = useAppState();
@@ -341,6 +341,7 @@ export function HomeScreen(_props: HomeScreenProps): React.JSX.Element {
                 style={[styles.avatar, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}
                 accessibilityLabel="Profile settings"
                 accessibilityRole="button"
+                onPress={() => props.navigation.navigate('Settings')}
               >
                 <Ionicons name="person" size={20} color={colors.iconSecondary} />
                 {/* Online indicator */}
@@ -377,7 +378,7 @@ export function HomeScreen(_props: HomeScreenProps): React.JSX.Element {
               EMERGENCY
             </Text>
 
-            <FloatingSOSButton onPress={() => nav.navigate('SOSConfirmation')} />
+            <FloatingSOSButton size="hero" onPress={() => nav.navigate('SOSConfirmation')} />
 
             <View style={styles.sosMeta}>
               <Ionicons name="people-outline" size={13} color={colors.textTertiary} />

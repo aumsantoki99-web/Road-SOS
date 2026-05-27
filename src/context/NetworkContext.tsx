@@ -17,6 +17,11 @@ import React, {
 } from 'react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { QueueService } from '../storage/QueueService';
+import {
+  startEmergencyQueueAutoSync,
+  stopEmergencyQueueAutoSync,
+  syncPendingQueue,
+} from '../services/emergencyQueue.service';
 import type { NetworkStatus } from '../types';
 
 interface NetworkContextValue {
@@ -32,6 +37,13 @@ export function NetworkProvider({ children }: { children: ReactNode }): React.JS
   const network = useNetworkStatus();
   const wasOffline = useRef(false);
 
+  useEffect(() => {
+    startEmergencyQueueAutoSync();
+    return () => {
+      stopEmergencyQueueAutoSync();
+    };
+  }, []);
+
   // Auto-flush queue when coming back online
   useEffect(() => {
     if (!network.isConnected) {
@@ -42,6 +54,7 @@ export function NetworkProvider({ children }: { children: ReactNode }): React.JS
       wasOffline.current = false;
       // TODO (feature/placeholder-services): SyncService.flush()
       void QueueService.flush();
+      void syncPendingQueue();
     }
   }, [network.isConnected]);
 

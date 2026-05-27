@@ -47,6 +47,17 @@ export interface MedicalProfile {
   serverUrl?: string;
 }
 
+export interface AuthProfile {
+  fullName: string;
+  email: string;
+  mobileNo: string;
+  bloodGroup: string;
+  aadharCard: string;
+  additionalMedicalInfo?: string;
+  password: string;
+  createdAt: number;
+}
+
 // ─── Hospital ────────────────────────────────────────────────────────────────
 
 export interface Hospital {
@@ -65,6 +76,18 @@ export interface Hospital {
   specialties: string[];
 }
 
+export type EmergencyPlaceType = 'hospital' | 'police' | 'trauma' | 'other';
+
+export interface EmergencyPlace {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  type: EmergencyPlaceType;
+  latitude: number;
+  longitude: number;
+}
+
 // ─── Offline Queue ───────────────────────────────────────────────────────────
 
 export type AlertType = 'crash' | 'sos' | 'ride_start' | 'ride_end';
@@ -79,11 +102,39 @@ export interface QueuedAlert {
   retryCount: number;
 }
 
+export type OfflineReason = 'none' | 'no_internet' | 'no_sim' | 'carrier_failure';
+
+export interface PendingEmergencyEvent {
+  eventId: string;
+  timestamp: number;
+  lat: number;
+  lng: number;
+  category: string;
+  offlineReason: OfflineReason;
+}
+
 // ─── Settings / Preferences ──────────────────────────────────────────────────
 
 export type ThemeMode = 'light' | 'dark' | 'system' | 'auto';
 export type CrashSensitivity = 'low' | 'medium' | 'high';
-export type AppLanguage = 'en' | 'hi' | 'gu';
+export type AppLanguage =
+  | 'en'
+  | 'hi'
+  | 'gu'
+  | 'mr'
+  | 'ta'
+  | 'te'
+  | 'bn'
+  | 'kn'
+  | 'ml'
+  | 'pa'
+  | 'ur'
+  | 'es'
+  | 'fr'
+  | 'de'
+  | 'ar'
+  | 'ja'
+  | 'zh';
 
 export interface UserPreferences {
   themeMode: ThemeMode;

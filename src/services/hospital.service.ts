@@ -2,6 +2,10 @@ import * as Location from 'expo-location';
 
 import { mockHospitals } from '../mock';
 import type { Hospital } from '../types';
+import {
+  getNearestCachedPlaces,
+  syncEmergencyDatabaseIfNeeded,
+} from './emergencyDatabase.service';
 
 export interface UserLocation {
   latitude: number;
@@ -256,6 +260,24 @@ export const HospitalService = {
   haversineKm,
 
   async findNearestPlace(latitude: number, longitude: number, type: 'hospital' | 'police'): Promise<NearestServicePlace | null> {
+    try {
+      await syncEmergencyDatabaseIfNeeded(latitude, longitude);
+      const cached = await getNearestCachedPlaces(latitude, longitude, type, 1);
+      const place = cached[0];
+      if (place) {
+        return {
+          name: place.name,
+          address: place.address,
+          distance: `${place.distanceKm.toFixed(1)} km`,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          phone: place.phone || (type === 'hospital' ? '108' : '100'),
+        };
+      }
+    } catch (err) {
+      console.warn('[HospitalService] Cached nearest place lookup failed:', err);
+    }
+
     const amenity = type === 'hospital' ? 'hospital' : 'police';
     const query = `[out:json][timeout:10];
 (
@@ -378,6 +400,43 @@ out body center 1;`;
     } = options;
 
     console.log(`[HospitalService] getNearby called at: ${location.latitude}, ${location.longitude}`);
+
+    // First priority: cached emergency place database from app backend.
+    try {
+      await syncEmergencyDatabaseIfNeeded(location.latitude, location.longitude);
+      const cachedHospitals = await getNearestCachedPlaces(
+        location.latitude,
+        location.longitude,
+        'hospital',
+        maxResults,
+      );
+
+      if (cachedHospitals.length > 0) {
+        const mapped: Hospital[] = cachedHospitals
+          .map((place) => ({
+            id: `cache_${place.id}`,
+            name: place.name,
+            address: place.address,
+            phone: place.phone,
+            distanceKm: place.distanceKm,
+            etaMinutes: Math.max(3, Math.round((place.distanceKm / 30) * 60)),
+            isEmergencyCenter: true,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            specialties: ['Emergency'],
+          }))
+          .filter((hospital) => !emergencyOnly || hospital.isEmergencyCenter)
+          .slice(0, maxResults);
+
+        if (mapped.length > 0) {
+          this.isLiveData = true;
+          lastResults = mapped;
+          return mapped;
+        }
+      }
+    } catch (err) {
+      console.warn('[HospitalService] Cached emergency database read failed:', err);
+    }
 
     // Try live Overpass API
     const liveHospitals = await queryOverpass(location, radiusMeters);

@@ -26,6 +26,9 @@ export type TabParamList = {
 // ─── Root Stack Navigator Param List ─────────────────────────────────────────
 
 export type RootStackParamList = {
+  /** Auth: login / signup */
+  Auth: undefined;
+
   /** Main tab layout — houses all 5 tab screens */
   MainTabs: NavigatorScreenParams<TabParamList> | undefined;
 

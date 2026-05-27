@@ -20,11 +20,16 @@ export const STORAGE_KEYS = {
   RIDE_HISTORY: '@ridesafe/ride_history',
   CURRENT_RIDE: '@ridesafe/current_ride',
   ALERT_QUEUE: '@ridesafe/alert_queue',
+  EMERGENCY_PLACES_CACHE: '@emergency_places_cache',
+  PENDING_EMERGENCY_EVENTS: '@pending_emergency_events',
   ONBOARDING_COMPLETE: '@ridesafe/onboarding_complete',
   LAST_SYNC: '@ridesafe/last_sync',
   MEDICAL_PROFILE: '@ridesafe/medical_profile',
   PROFILE_SETUP_DONE: '@ridesafe/profile_setup_done',
   SMS_PERMISSION_GRANTED: '@ridesafe/sms_permission_granted',
+  AUTH_SESSION: '@ridesafe/auth_session',
+  AUTH_PROFILE: '@ridesafe/auth_profile',
+  LANGUAGE_SELECTED_ONBOARDING: '@ridesafe/language_selected_onboarding',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
@@ -36,6 +41,8 @@ export const EMERGENCY_SERVER = {
   DEFAULT_VOICE_TARGET: '+919314050474',
   DEFAULT_HELPER_SMS: '+917359129704',
 } as const;
+
+export const EMERGENCY_DATABASE_SERVER = 'https://road-sos-flax.vercel.app';
 
 // ─── Default Preferences ────────────────────────────────────────────────────
 

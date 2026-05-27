@@ -35,3 +35,18 @@ export { AlertController } from './alertController';
 export { SosService } from './sosService';
 export type { SosSendResult } from './sosService';
 
+export {
+  calculateDistance,
+  getCachedEmergencyPlaces,
+  getNearestCachedPlaces,
+  syncEmergencyDatabaseIfNeeded,
+} from './emergencyDatabase.service';
+export type { NearbyEmergencyPlace } from './emergencyDatabase.service';
+
+export {
+  queueEmergencyEvent,
+  syncPendingQueue,
+  startEmergencyQueueAutoSync,
+  stopEmergencyQueueAutoSync,
+} from './emergencyQueue.service';
+

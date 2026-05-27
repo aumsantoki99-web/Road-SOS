@@ -18,12 +18,16 @@
  * Future: Auth flow slots in here before MainTabs when implemented.
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from './types';
 import { TabNavigator } from './TabNavigator';
 import { useTheme } from '../context/ThemeContext';
+import { STORAGE_KEYS } from '../constants';
+import { StorageService } from '../storage/StorageService';
+import { AuthScreen } from '../screens/Auth/AuthScreen';
 
 // ── Modal screen imports ──────────────────────────────────────────────────────
 // These are stub screens until their feature branches are built.
@@ -41,8 +45,39 @@ import { MedicalIDScreen } from '../screens/Settings/MedicalIDScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+interface AuthSessionPayload {
+  isLoggedIn: boolean;
+}
+
 export function AppNavigator(): React.JSX.Element {
   const { colors } = useTheme();
+  const [authResolved, setAuthResolved] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadAuthState(): Promise<void> {
+      try {
+        const session = await StorageService.get<AuthSessionPayload>(STORAGE_KEYS.AUTH_SESSION);
+        if (!mounted) return;
+        setIsAuthenticated(Boolean(session.success && session.data?.isLoggedIn));
+      } catch {
+        if (mounted) setIsAuthenticated(false);
+      } finally {
+        if (mounted) setAuthResolved(true);
+      }
+    }
+
+    void loadAuthState();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!authResolved) {
+    return <View style={{ flex: 1, backgroundColor: colors.bgPrimary }} />;
+  }
 
   return (
     <Stack.Navigator
@@ -53,127 +88,138 @@ export function AppNavigator(): React.JSX.Element {
         // Future auth: initialRouteName="Onboarding" when not onboarded
       }}
     >
-      {/* ── Main app (tab-based) ──────────────────────────────────────── */}
-      <Stack.Screen
-        name="MainTabs"
-        component={TabNavigator}
-        options={{ animation: 'none' }}
-      />
+      {!isAuthenticated ? (
+        <Stack.Screen
+          name="Auth"
+          options={{ animation: 'none' }}
+        >
+          {() => <AuthScreen onAuthenticated={() => setIsAuthenticated(true)} />}
+        </Stack.Screen>
+      ) : (
+        <>
+          {/* ── Main app (tab-based) ──────────────────────────────────────── */}
+          <Stack.Screen
+            name="MainTabs"
+            component={TabNavigator}
+            options={{ animation: 'none' }}
+          />
 
-      {/* ── Contact modals ────────────────────────────────────────────── */}
-      <Stack.Screen
-        name="AddContact"
-        component={AddContactScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="EditContact"
-        component={EditContactScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
+          {/* ── Contact modals ────────────────────────────────────────────── */}
+          <Stack.Screen
+            name="AddContact"
+            component={AddContactScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="EditContact"
+            component={EditContactScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
 
       {/* ── Hospital detail ───────────────────────────────────────────── */}
-      <Stack.Screen
-        name="HospitalDetail"
-        component={HospitalDetailScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
+          <Stack.Screen
+            name="HospitalDetail"
+            component={HospitalDetailScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
 
       {/* ── Emergency In-App Navigation ──────────────────────────────── */}
-      <Stack.Screen
-        name="InAppNavigation"
-        component={InAppNavigationModal}
-        options={{
-          presentation: 'fullScreenModal',
-          animation: 'fade',
-          headerShown: false,
-        }}
-      />
+          <Stack.Screen
+            name="InAppNavigation"
+            component={InAppNavigationModal}
+            options={{
+              presentation: 'fullScreenModal',
+              animation: 'fade',
+              headerShown: false,
+            }}
+          />
 
       {/* ── Ride history ──────────────────────────────────────────────── */}
-      <Stack.Screen
-        name="RideHistory"
-        component={RideHistoryScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
+          <Stack.Screen
+            name="RideHistory"
+            component={RideHistoryScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
 
       {/* ── SOS Confirmation — full-screen emergency overlay ─────────── */}
       {/* transparentModal keeps background visible for countdown urgency */}
-      <Stack.Screen
-        name="SOSConfirmation"
-        component={SOSConfirmationScreen}
-        options={{
-          presentation: 'transparentModal',
-          animation: 'fade',
-          headerShown: false,
-        }}
-      />
+          <Stack.Screen
+            name="SOSConfirmation"
+            component={SOSConfirmationScreen}
+            options={{
+              presentation: 'transparentModal',
+              animation: 'fade',
+              headerShown: false,
+            }}
+          />
 
-      <Stack.Screen
-        name="MedicalID"
-        component={MedicalIDScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
+          <Stack.Screen
+            name="MedicalID"
+            component={MedicalIDScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
 
       {/* ── Teammate SOS screens ─────────────────────────────────────── */}
-      <Stack.Screen
-        name="CrashCountdown"
-        component={CrashCountdownScreen}
-        options={{
-          presentation: 'transparentModal',
-          animation: 'fade',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="DeadManSwitch"
-        component={DeadManSwitchScreen}
-        options={{
-          presentation: 'transparentModal',
-          animation: 'fade',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="SosTriggered"
-        component={SosTriggeredScreen}
-        options={{
-          presentation: 'fullScreenModal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
+          <Stack.Screen
+            name="CrashCountdown"
+            component={CrashCountdownScreen}
+            options={{
+              presentation: 'transparentModal',
+              animation: 'fade',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="DeadManSwitch"
+            component={DeadManSwitchScreen}
+            options={{
+              presentation: 'transparentModal',
+              animation: 'fade',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="SosTriggered"
+            component={SosTriggeredScreen}
+            options={{
+              presentation: 'fullScreenModal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
 
       {/* ── Offline Mode ──────────────────────────────────────────────── */}
-      <Stack.Screen
-        name="OfflineMode"
-        component={OfflineModeScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
+          <Stack.Screen
+            name="OfflineMode"
+            component={OfflineModeScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
+        </>
+      )}
     </Stack.Navigator>
   );
 }

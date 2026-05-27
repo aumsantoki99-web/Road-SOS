@@ -28,6 +28,7 @@ import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { StorageService } from '../../storage/StorageService';
 import { STORAGE_KEYS, EMERGENCY_SERVER } from '../../constants';
 import { CustomButton } from '../../components/common/CustomButton';
+import { LanguageSelectionModal } from '../../components/common/LanguageSelectionModal';
 import { spacing, radius, borderWidth, layout } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
@@ -68,10 +69,29 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
 
   // References for automatic textinput focus jumping
   const monthInputRef = useRef<TextInput>(null);
   const yearInputRef = useRef<TextInput>(null);
+
+  // Check if first-launch language selection is needed
+  useEffect(() => {
+    if (isForceOnboarding) {
+      async function checkLanguageOnboarding() {
+        const result = await StorageService.get<string>('@ridesafe/language_selected_onboarding');
+        if (!result.success || result.data !== 'true') {
+          setIsLanguageModalVisible(true);
+        }
+      }
+      void checkLanguageOnboarding();
+    }
+  }, [isForceOnboarding]);
+
+  const handleConfirmLanguage = async () => {
+    setIsLanguageModalVisible(false);
+    await StorageService.set('@ridesafe/language_selected_onboarding', 'true');
+  };
 
   // Load existing profile
   useEffect(() => {
@@ -244,6 +264,11 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: '#09090C' }]} edges={['top', 'bottom']}>
+      <LanguageSelectionModal
+        visible={isLanguageModalVisible}
+        onClose={handleConfirmLanguage}
+        isFirstLaunch={isForceOnboarding}
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

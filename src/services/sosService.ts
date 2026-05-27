@@ -1,12 +1,14 @@
 import * as SMS from 'expo-sms';
 import { Platform, Linking } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, EMERGENCY_SERVER } from '../constants';
-import type { EmergencyContact, MedicalProfile } from '../types';
+import type { EmergencyContact, MedicalProfile, OfflineReason } from '../types';
 import type { CrashEvent } from './crashDetection.service';
 import { QueueService } from '../storage/QueueService';
 import { HospitalService } from './hospital.service';
 import { StorageService } from '../storage/StorageService';
+import { queueEmergencyEvent } from './emergencyQueue.service';
 
 export const EMERGENCY_NUMBER = '112';
 
@@ -413,6 +415,16 @@ export const SosService = {
     // 2. Resolve coords
     let lat = event.latitude ?? 22.3039;
     let lng = event.longitude ?? 70.8022;
+
+    // 2a. Write SOS into offline-first outbox for backend history sync.
+    let offlineReason: OfflineReason = 'none';
+    try {
+      const network = await NetInfo.fetch();
+      offlineReason = network.isConnected ? 'none' : 'no_internet';
+    } catch {
+      offlineReason = 'carrier_failure';
+    }
+    await queueEmergencyEvent(lat, lng, 'trauma', offlineReason);
 
     // Resolve nearest hospital phone number to dial
     let hospital = null;
