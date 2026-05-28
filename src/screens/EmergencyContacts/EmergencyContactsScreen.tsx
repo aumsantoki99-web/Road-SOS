@@ -151,11 +151,11 @@ export function EmergencyContactsScreen(_props: ContactsScreenProps): React.JSX.
 
   function handleDelete(contact: EmergencyContact): void {
     Alert.alert(
-      'Remove Contact',
+      t('contacts.removeTitle'),
       `Remove ${contact.name} from your emergency contacts?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => void deleteContact(contact.id) },
+        { text: t('contacts.removeConfirm'), style: 'destructive', onPress: () => void deleteContact(contact.id) },
       ],
     );
   }
@@ -163,8 +163,8 @@ export function EmergencyContactsScreen(_props: ContactsScreenProps): React.JSX.
   function handleSetPrimary(contact: EmergencyContact): void {
     if (contact.isPrimary) return;
     Alert.alert(
-      'Set as Primary',
-      `Make ${contact.name} your primary emergency contact?`,
+      t('contacts.maxReachedTitle'),
+      t('contacts.maxReachedBody'),
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Set Primary', onPress: () => void setPrimary(contact.id) },

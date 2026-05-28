@@ -28,6 +28,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { CustomButton } from '../../components/common/CustomButton';
 import { CountrySelectionModal, COUNTRY_CODES, type CountryCodeOption } from '../../components/common/CountrySelectionModal';
 import { spacing, radius, borderWidth, layout } from '../../theme/spacing';
@@ -95,6 +96,7 @@ export function ContactFormSheet({
   onCancel,
 }: ContactFormSheetProps): React.JSX.Element {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const [selectedCountry, setSelectedCountry] = React.useState<CountryCodeOption>(COUNTRY_CODES[0] || { code: '+91', flag: '🇮🇳', name: 'India' });
   const [isCountryModalVisible, setIsCountryModalVisible] = React.useState(false);
@@ -180,7 +182,7 @@ export function ContactFormSheet({
           showsVerticalScrollIndicator={false}
         >
           {/* ── Name field ──────────────────────────────────────────── */}
-          <Field label="Full Name *" error={form.errors.name} touched={form.touched.name}>
+          <Field label={`${t('contacts.fullName')} *`} error={form.errors.name} touched={form.touched.name}>
             <TextInput
               style={[styles.input, getInputStyle('name')]}
               placeholder="e.g. Priya Sharma"
@@ -196,7 +198,7 @@ export function ContactFormSheet({
           </Field>
 
           {/* ── Phone field ─────────────────────────────────────────── */}
-          <Field label="Mobile Number *" error={form.errors.phone} touched={form.touched.phone}>
+          <Field label={`${t('profile.mobileNumber')} *`} error={form.errors.phone} touched={form.touched.phone}>
             <View style={styles.phoneRow}>
               {/* Country code badge */}
               <TouchableOpacity
@@ -225,7 +227,7 @@ export function ContactFormSheet({
 
           {/* ── Relationship field ──────────────────────────────────── */}
           <Field
-            label="Relationship *"
+            label={`${t('contacts.relationship')} *`}
             error={form.errors.relationship}
             touched={form.touched.relationship}
           >

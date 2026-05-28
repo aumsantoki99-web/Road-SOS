@@ -263,17 +263,17 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
     return unsubscribe;
   }, [navigation]);
 
-  const { data: prefs, save: savePrefs } = useStorage<UserPreferences>(
+  const { data: prefs, save: savePrefs, isLoading } = useStorage<UserPreferences>(
     STORAGE_KEYS.PREFERENCES,
     DEFAULT_PREFERENCES,
   );
 
   // Sync preferences state with context language dynamically to prevent stale overwrites
   useEffect(() => {
-    if (prefs && prefs.language !== language) {
+    if (!isLoading && prefs && prefs.language !== language) {
       void updatePref('language', language);
     }
-  }, [language, prefs?.language]);
+  }, [language, prefs?.language, isLoading]);
 
   const languageOptions: { value: AppLanguage; label: string }[] = [
     { value: 'en', label: t('settings.languageEnglish') },

@@ -90,7 +90,82 @@ type TranslationKey =
   | 'sos.cancelBtn'
   | 'sos.autoSendNote'
   | 'sos.failed'
-  | 'sos.failedBody';
+  | 'sos.failedBody'
+  | 'profile.titleForce'
+  | 'profile.titleNormal'
+  | 'profile.subtitle'
+  | 'profile.tip'
+  | 'profile.fullName'
+  | 'profile.fullNamePlaceholder'
+  | 'profile.mobileNumber'
+  | 'profile.mobileNumberPlaceholder'
+  | 'profile.dob'
+  | 'profile.gender'
+  | 'profile.genderMale'
+  | 'profile.genderFemale'
+  | 'profile.genderOther'
+  | 'profile.bloodGroup'
+  | 'profile.conditions'
+  | 'profile.conditionsPlaceholder'
+  | 'profile.advanced'
+  | 'profile.save'
+  | 'profile.cancel'
+  | 'profile.validationName'
+  | 'profile.validationPhone'
+  | 'profile.validationDob'
+  | 'profile.validationBlood'
+  | 'profile.savedTitle'
+  | 'profile.savedBody'
+  | 'profile.skipTitle'
+  | 'profile.skipBody'
+  | 'profile.keepSettingUp'
+  | 'profile.skipSetup'
+  | 'profile.storageError'
+  | 'profile.relationship'
+  | 'home.emergency'
+  | 'home.contactsAlerted'
+  | 'home.actionRequired'
+  | 'home.completeProfile'
+  | 'home.quickActions'
+  | 'home.startRide'
+  | 'home.stopRide'
+  | 'home.monitoringActive'
+  | 'home.beginMonitoring'
+  | 'home.contacts'
+  | 'home.contactsCount'
+  | 'home.hospitals'
+  | 'home.nearestHospital'
+  | 'home.offline'
+  | 'home.active'
+  | 'home.ready'
+  | 'home.safetyOverview'
+  | 'home.allSystemsReady'
+  | 'home.safe'
+  | 'home.rides'
+  | 'home.incidents'
+  | 'home.startFirstRide'
+  | 'home.goodMorning'
+  | 'home.goodAfternoon'
+  | 'home.goodEvening'
+  | 'home.helloRider'
+  | 'home.safetyStatusActive'
+  | 'home.safetyStatusReady'
+  | 'crash.impactDetected'
+  | 'crash.areYouOkay'
+  | 'crash.seconds'
+  | 'crash.imOkay'
+  | 'crash.autoAlert'
+  | 'contacts.fullName'
+  | 'contacts.relationship'
+  | 'contacts.relationshipPlaceholder'
+  | 'contacts.addContactTitle'
+  | 'contacts.editContactTitle'
+  | 'contacts.validationRelationship'
+  | 'contacts.maxReachedTitle'
+  | 'contacts.maxReachedBody'
+  | 'contacts.removeTitle'
+  | 'contacts.removeBody'
+  | 'contacts.removeConfirm';
 
 type TranslationTable = Partial<Record<TranslationKey, string>>;
 type FullTranslationTable = Record<TranslationKey, string>;
@@ -177,6 +252,81 @@ const baseEnglishTranslations: FullTranslationTable = {
   'sos.autoSendNote': 'Alert sends automatically when timer reaches zero',
   'sos.failed': 'SOS failed',
   'sos.failedBody': 'The alert could not be prepared. Please call emergency services directly.',
+  'profile.titleForce': 'Set Up Medical ID',
+  'profile.titleNormal': 'Emergency Medical ID',
+  'profile.subtitle': 'Saved locally on your device for emergency dispatches',
+  'profile.tip': 'First responders will receive this information automatically during an emergency SOS voice call to expedite treatment.',
+  'profile.fullName': 'Full Name',
+  'profile.fullNamePlaceholder': 'e.g. Priya Sharma',
+  'profile.mobileNumber': 'Mobile Number',
+  'profile.mobileNumberPlaceholder': '98765 43210',
+  'profile.dob': 'Date of Birth (DD-MM-YYYY)',
+  'profile.gender': 'Gender',
+  'profile.genderMale': 'Male',
+  'profile.genderFemale': 'Female',
+  'profile.genderOther': 'Other',
+  'profile.bloodGroup': 'Blood Group',
+  'profile.conditions': 'Medical Conditions / Allergies',
+  'profile.conditionsPlaceholder': 'List any details first responders should know...',
+  'profile.advanced': 'Advanced: Crash Server Settings',
+  'profile.save': 'Save Medical ID',
+  'profile.cancel': 'Cancel',
+  'profile.validationName': 'Validation Error: Please enter your full name.',
+  'profile.validationPhone': 'Validation Error: Please enter a valid mobile number.',
+  'profile.validationDob': 'Validation Error: Please enter a valid Date of Birth (DD-MM-YYYY).',
+  'profile.validationBlood': 'Validation Error: Please select your blood group.',
+  'profile.savedTitle': 'Profile Saved',
+  'profile.savedBody': 'Your Emergency Medical ID has been stored securely on this device.',
+  'profile.skipTitle': 'Skip Medical ID Setup?',
+  'profile.skipBody': 'Would you like to skip Emergency Medical ID setup for now?\n\n⚠️ Note: Active crash sensors and auto-SOS dispatch features will remain disabled until your profile is complete.',
+  'profile.keepSettingUp': 'Keep Setting Up',
+  'profile.skipSetup': 'Skip Setup',
+  'profile.storageError': 'Storage Error: Failed to save Medical ID. Please try again.',
+  'profile.relationship': 'Relationship',
+  'home.emergency': 'EMERGENCY',
+  'home.contactsAlerted': 'contact{s} will be alerted',
+  'home.actionRequired': 'Action Required',
+  'home.completeProfile': 'Complete Emergency Medical ID to enable safety sensors.',
+  'home.quickActions': 'QUICK ACTIONS',
+  'home.startRide': 'Start Ride',
+  'home.stopRide': 'Stop Ride',
+  'home.monitoringActive': 'Monitoring active',
+  'home.beginMonitoring': 'Begin safety monitoring',
+  'home.contacts': 'Contacts',
+  'home.contactsCount': 'saved',
+  'home.hospitals': 'Hospitals',
+  'home.nearestHospital': 'Nearest: 2.3 km',
+  'home.offline': 'Offline',
+  'home.active': 'Active',
+  'home.ready': 'Ready',
+  'home.safetyOverview': 'SAFETY OVERVIEW',
+  'home.allSystemsReady': 'All systems ready',
+  'home.safe': 'SAFE',
+  'home.rides': 'Rides',
+  'home.incidents': 'Incidents',
+  'home.startFirstRide': 'Start your first ride',
+  'home.goodMorning': 'Good Morning',
+  'home.goodAfternoon': 'Good Afternoon',
+  'home.goodEvening': 'Good Evening',
+  'home.helloRider': 'Hello, Rider',
+  'home.safetyStatusActive': 'Safety Watch Active',
+  'home.safetyStatusReady': 'Safety Watch Ready',
+  'crash.impactDetected': 'Impact Detected!',
+  'crash.areYouOkay': 'Are you okay? An emergency SOS alert will be sent in:',
+  'crash.seconds': 'SECONDS',
+  'crash.imOkay': "I'M OKAY, CANCEL SOS",
+  'crash.autoAlert': 'Calling emergency 112 & alerting contacts automatically',
+  'contacts.fullName': 'Full Name',
+  'contacts.relationship': 'Relationship',
+  'contacts.relationshipPlaceholder': 'e.g. Spouse, Doctor, Friend',
+  'contacts.addContactTitle': 'Add Emergency Contact',
+  'contacts.editContactTitle': 'Edit Emergency Contact',
+  'contacts.validationRelationship': 'Validation Error: Please select or enter relationship.',
+  'contacts.maxReachedTitle': 'Max Contacts Reached',
+  'contacts.maxReachedBody': 'You can save up to 5 emergency contacts.',
+  'contacts.removeTitle': 'Remove Contact',
+  'contacts.removeBody': 'Are you sure you want to remove {name}?',
+  'contacts.removeConfirm': 'Remove',
 };
 
 const translations: Record<AppLanguage, TranslationTable> = {
@@ -224,6 +374,81 @@ const translations: Record<AppLanguage, TranslationTable> = {
     'contacts.title': 'संपर्क',
     'contacts.add': 'जोड़ें',
     'contacts.loading': 'संपर्क लोड हो रहे हैं...',
+    'profile.titleForce': 'मेडिकल आईडी सेट अप करें',
+    'profile.titleNormal': 'आपातकालीन मेडिकल आईडी',
+    'profile.subtitle': 'आपातकालीन प्रेषण के लिए आपके डिवाइस पर स्थानीय रूप से सहेजा गया',
+    'profile.tip': 'शीघ्र उपचार के लिए आपातकालीन एसओएस वॉयस कॉल के दौरान प्रथम प्रतिक्रियाकर्ताओं को यह जानकारी स्वचालित रूप से प्राप्त होगी।',
+    'profile.fullName': 'पूरा नाम',
+    'profile.fullNamePlaceholder': 'जैसे प्रिया शर्मा',
+    'profile.mobileNumber': 'मोबाइल नंबर',
+    'profile.mobileNumberPlaceholder': '98765 43210',
+    'profile.dob': 'जन्म तिथि (DD-MM-YYYY)',
+    'profile.gender': 'लिंग',
+    'profile.genderMale': 'पुरुष',
+    'profile.genderFemale': 'महिला',
+    'profile.genderOther': 'अन्य',
+    'profile.bloodGroup': 'रक्त समूह',
+    'profile.conditions': 'चिकित्सीय स्थितियां / एलर्जी',
+    'profile.conditionsPlaceholder': 'प्रथम प्रतिक्रियाकर्ताओं को जानने योग्य विवरण लिखें...',
+    'profile.advanced': 'उन्नत: क्रैश सर्वर सेटिंग्स',
+    'profile.save': 'मेडिकल आईडी सहेजें',
+    'profile.cancel': 'रद्द करें',
+    'profile.validationName': 'सत्यापन त्रुटि: कृपया अपना पूरा नाम दर्ज करें।',
+    'profile.validationPhone': 'सत्यापन त्रुटि: कृपया एक वैध मोबाइल नंबर दर्ज करें।',
+    'profile.validationDob': 'सत्यापन त्रुटि: कृपया एक वैध जन्म तिथि दर्ज करें (DD-MM-YYYY)।',
+    'profile.validationBlood': 'सत्यापन त्रुटि: कृपया अपना रक्त समूह चुनें।',
+    'profile.savedTitle': 'प्रोफ़ाइल सहेजी गई',
+    'profile.savedBody': 'आपकी आपातकालीन मेडिकल आईडी इस डिवाइस पर सुरक्षित रूप से संग्रहीत की गई है।',
+    'profile.skipTitle': 'मेडिकल आईडी सेटअप छोड़ें?',
+    'profile.skipBody': 'क्या आप अभी के लिए आपातकालीन मेडिकल आईडी सेटअप छोड़ना चाहते हैं?\n\n⚠️ नोट: सक्रिय क्रैश सेंसर और ऑटो-एसओएस प्रेषण सुविधाएं आपकी प्रोफ़ाइल पूरी होने तक अक्षम रहेंगी।',
+    'profile.keepSettingUp': 'सेटअप जारी रखें',
+    'profile.skipSetup': 'सेटअप छोड़ें',
+    'profile.storageError': 'भंडारण त्रुटि: मेडिकल आईडी सहेजने में विफल। कृपया पुन: प्रयास करें।',
+    'profile.relationship': 'संबंध',
+    'home.emergency': 'आपातकालीन',
+    'home.contactsAlerted': 'संपर्कों को सतर्क किया जाएगा',
+    'home.actionRequired': 'कार्रवाई आवश्यक',
+    'home.completeProfile': 'सुरक्षा सेंसर सक्षम करने के लिए आपातकालीन मेडिकल आईडी पूरी करें।',
+    'home.quickActions': 'त्वरित कार्रवाई',
+    'home.startRide': 'राइड शुरू करें',
+    'home.stopRide': 'राइड समाप्त करें',
+    'home.monitoringActive': 'निगरानी सक्रिय',
+    'home.beginMonitoring': 'सुरक्षा निगरानी शुरू करें',
+    'home.contacts': 'संपर्क',
+    'home.contactsCount': 'सहेजे गए',
+    'home.hospitals': 'अस्पताल',
+    'home.nearestHospital': 'निकटतम: 2.3 किमी',
+    'home.offline': 'ऑफ़लाइन',
+    'home.active': 'सक्रिय',
+    'home.ready': 'तैयार',
+    'home.safetyOverview': 'सुरक्षा अवलोकन',
+    'home.allSystemsReady': 'सभी प्रणालियाँ तैयार हैं',
+    'home.safe': 'सुरक्षित',
+    'home.rides': 'राइड्स',
+    'home.incidents': 'घटनाएं',
+    'home.startFirstRide': 'अपनी पहली सवारी शुरू करें',
+    'home.goodMorning': 'शुभ प्रभात',
+    'home.goodAfternoon': 'शुभ दोपहर',
+    'home.goodEvening': 'शुभ संध्या',
+    'home.helloRider': 'नमस्कार, राइडर',
+    'home.safetyStatusActive': 'सुरक्षा घड़ी सक्रिय',
+    'home.safetyStatusReady': 'सुरक्षा घड़ी तैयार',
+    'crash.impactDetected': 'दुर्घटना का पता चला!',
+    'crash.areYouOkay': 'क्या आप ठीक हैं? एक आपातकालीन एसओएस अलर्ट भेजा जाएगा:',
+    'crash.seconds': 'सेकंड',
+    'crash.imOkay': 'मैं ठीक हूँ, एसओएस रद्द करें',
+    'crash.autoAlert': 'आपातकालीन 112 पर कॉल करना और संपर्कों को स्वचालित रूप से सचेत करना',
+    'contacts.fullName': 'पूरा नाम',
+    'contacts.relationship': 'संबंध',
+    'contacts.relationshipPlaceholder': 'जैसे जीवनसाथी, डॉक्टर, मित्र',
+    'contacts.addContactTitle': 'आपातकालीन संपर्क जोड़ें',
+    'contacts.editContactTitle': 'आपातकालीन संपर्क संपादित करें',
+    'contacts.validationRelationship': 'सत्यापन त्रुटि: कृपया संबंध चुनें या दर्ज करें।',
+    'contacts.maxReachedTitle': 'अधिकतम संपर्क सीमा',
+    'contacts.maxReachedBody': 'आप अधिकतम 5 आपातकालीन संपर्क सहेज सकते हैं।',
+    'contacts.removeTitle': 'संपर्क हटाएँ',
+    'contacts.removeBody': 'क्या आप निश्चित रूप से {name} को हटाना चाहते हैं?',
+    'contacts.removeConfirm': 'हटाएँ',
   },
   gu: {
     'tabs.home': 'હોમ',
@@ -664,6 +889,81 @@ const translations: Record<AppLanguage, TranslationTable> = {
     'contacts.title': 'Contactos',
     'contacts.add': 'Añadir',
     'contacts.loading': 'Cargando contactos...',
+    'profile.titleForce': 'Configurar ID Médico',
+    'profile.titleNormal': 'ID Médico de Emergencia',
+    'profile.subtitle': 'Guardado localmente en su dispositivo para despachos de emergencia',
+    'profile.tip': 'Los socorristas recibirán esta información automáticamente durante una llamada de voz SOS de emergencia para acelerar el tratamiento.',
+    'profile.fullName': 'Nombre Completo',
+    'profile.fullNamePlaceholder': 'ej. Priya Sharma',
+    'profile.mobileNumber': 'Número de Móvil',
+    'profile.mobileNumberPlaceholder': '98765 43210',
+    'profile.dob': 'Fecha de Nacimiento (DD-MM-AAAA)',
+    'profile.gender': 'Género',
+    'profile.genderMale': 'Masculino',
+    'profile.genderFemale': 'Femenino',
+    'profile.genderOther': 'Otro',
+    'profile.bloodGroup': 'Grupo Sanguíneo',
+    'profile.conditions': 'Condiciones Médicas / Alergias',
+    'profile.conditionsPlaceholder': 'Detalle cualquier información que los socorristas deban saber...',
+    'profile.advanced': 'Avanzado: Ajustes del Servidor de Choque',
+    'profile.save': 'Guardar ID Médico',
+    'profile.cancel': 'Cancelar',
+    'profile.validationName': 'Error de validación: Ingrese su nombre completo.',
+    'profile.validationPhone': 'Error de validación: Ingrese un número de móvil válido.',
+    'profile.validationDob': 'Error de validación: Ingrese una fecha de nacimiento válida (DD-MM-AAAA).',
+    'profile.validationBlood': 'Error de validación: Seleccione su grupo sanguíneo.',
+    'profile.savedTitle': 'Perfil Guardado',
+    'profile.savedBody': 'Su ID Médico de Emergencia se ha almacenado de forma segura en este dispositivo.',
+    'profile.skipTitle': '¿Omitir configuración de ID Médico?',
+    'profile.skipBody': '¿Desea omitir la configuración del ID Médico de Emergencia por ahora?\n\n⚠️ Nota: Los sensores de choque activos y las funciones de despacho automático de SOS permanecerán deshabilitados hasta que se complete su perfil.',
+    'profile.keepSettingUp': 'Seguir configurando',
+    'profile.skipSetup': 'Omitir configuración',
+    'profile.storageError': 'Error de almacenamiento: No se pudo guardar el ID Médico. Inténtelo de nuevo.',
+    'profile.relationship': 'Relación',
+    'home.emergency': 'EMERGENCIA',
+    'home.contactsAlerted': 'contactos serán alertados',
+    'home.actionRequired': 'Acción Requerida',
+    'home.completeProfile': 'Complete su ID Médico de Emergencia para habilitar sensores de seguridad.',
+    'home.quickActions': 'ACCIONES RÁPIDAS',
+    'home.startRide': 'Iniciar Viaje',
+    'home.stopRide': 'Terminar Viaje',
+    'home.monitoringActive': 'Monitoreo activo',
+    'home.beginMonitoring': 'Comenzar monitoreo de seguridad',
+    'home.contacts': 'Contactos',
+    'home.contactsCount': 'guardados',
+    'home.hospitals': 'Hospitales',
+    'home.nearestHospital': 'Más cercano: 2.3 km',
+    'home.offline': 'Sin Conexión',
+    'home.active': 'Activo',
+    'home.ready': 'Listo',
+    'home.safetyOverview': 'RESUMEN DE SEGURIDAD',
+    'home.allSystemsReady': 'Todos los sistemas listos',
+    'home.safe': 'SEGURO',
+    'home.rides': 'Viajes',
+    'home.incidents': 'Incidentes',
+    'home.startFirstRide': 'Inicie su primer viaje',
+    'home.goodMorning': 'Buenos Días',
+    'home.goodAfternoon': 'Buenas Tardes',
+    'home.goodEvening': 'Buenas Noches',
+    'home.helloRider': 'Hola, Ciclista',
+    'home.safetyStatusActive': 'Seguridad Activa',
+    'home.safetyStatusReady': 'Seguridad Lista',
+    'crash.impactDetected': '¡Impacto Detectado!',
+    'crash.areYouOkay': '¿Se encuentra bien? Se enviará una alerta SOS de emergencia en:',
+    'crash.seconds': 'SEGUNDOS',
+    'crash.imOkay': 'ESTOY BIEN, CANCELAR SOS',
+    'crash.autoAlert': 'Llamando a emergencias 112 y alertando a contactos automáticamente',
+    'contacts.fullName': 'Nombre Completo',
+    'contacts.relationship': 'Relación',
+    'contacts.relationshipPlaceholder': 'ej. Esposo(a), Médico, Amigo(a)',
+    'contacts.addContactTitle': 'Añadir Contacto de Emergencia',
+    'contacts.editContactTitle': 'Editar Contacto de Emergencia',
+    'contacts.validationRelationship': 'Error de validación: Seleccione o ingrese una relación.',
+    'contacts.maxReachedTitle': 'Límite de Contactos Alcanzado',
+    'contacts.maxReachedBody': 'Puede guardar hasta 5 contactos de emergencia.',
+    'contacts.removeTitle': 'Eliminar Contacto',
+    'contacts.removeBody': '¿Está seguro de que desea eliminar a {name}?',
+    'contacts.removeConfirm': 'Eliminar',
   },
   fr: {
     'tabs.home': 'Accueil',

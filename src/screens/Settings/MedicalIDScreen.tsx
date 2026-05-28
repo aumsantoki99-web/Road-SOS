@@ -234,12 +234,12 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
   // Form submit handler
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Please enter your full name.');
+      Alert.alert(t('profile.fullName'), t('profile.validationName'));
       return;
     }
     const cleanedPhone = phone.replace(/\D/g, '');
     if (!phone.trim() || cleanedPhone.length < 7 || cleanedPhone.length > 15) {
-      Alert.alert('Validation Error', 'Please enter a valid mobile number (7 to 15 digits).');
+      Alert.alert(t('profile.mobileNumber'), t('profile.validationPhone'));
       return;
     }
     if (!gender) {
@@ -247,11 +247,11 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
       return;
     }
     if (!bloodGroup) {
-      Alert.alert('Validation Error', 'Please select your blood group.');
+      Alert.alert(t('profile.bloodGroup'), t('profile.validationBlood'));
       return;
     }
     if (age === 0) {
-      Alert.alert('Validation Error', 'Please enter a valid Date of Birth (DD-MM-YYYY).');
+      Alert.alert(t('profile.dob'), t('profile.validationDob'));
       return;
     }
 
@@ -274,7 +274,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
       await StorageService.set(STORAGE_KEYS.MEDICAL_PROFILE, profileData);
       await StorageService.set(STORAGE_KEYS.PROFILE_SETUP_DONE, 'true');
       
-      Alert.alert('Profile Saved', 'Your Emergency Medical ID has been stored securely on this device.', [
+      Alert.alert(t('profile.savedTitle'), t('profile.savedBody'), [
         {
           text: 'OK',
           onPress: () => {
@@ -290,7 +290,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
         },
       ]);
     } catch (e) {
-      Alert.alert('Storage Error', 'Failed to save Medical ID. Please try again.');
+      Alert.alert(t('profile.save'), t('profile.storageError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -299,12 +299,12 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
   const handleCancel = () => {
     if (isForceOnboarding) {
       Alert.alert(
-        'Skip Medical ID Setup?',
-        'Would you like to skip Emergency Medical ID setup for now?\n\n⚠️ Note: Active crash sensors and auto-SOS dispatch features will remain disabled until your profile is complete.',
+        t('profile.skipTitle'),
+        t('profile.skipBody'),
         [
-          { text: 'Keep Setting Up', style: 'cancel' },
+          { text: t('profile.keepSettingUp'), style: 'cancel' },
           {
-            text: 'Skip Setup',
+            text: t('profile.skipSetup'),
             style: 'destructive',
             onPress: async () => {
               await StorageService.set(STORAGE_KEYS.PROFILE_SETUP_DONE, 'false');
@@ -340,10 +340,10 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
             </View>
             <View>
               <Text style={[textStyles.headingLarge, { color: '#FFFFFF' }]}>
-                {isForceOnboarding ? 'Set Up Medical ID' : 'Emergency Medical ID'}
+                {isForceOnboarding ? t('profile.titleForce') : t('profile.titleNormal')}
               </Text>
               <Text style={[textStyles.caption, { color: 'rgba(255,255,255,0.45)', marginTop: 2 }]}>
-                Saved locally on your device for emergency dispatches
+                {t('profile.subtitle')}
               </Text>
             </View>
           </View>
@@ -368,7 +368,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
             <View style={styles.tipCard}>
               <Ionicons name="shield-checkmark" size={20} color="#EF4444" style={{ marginRight: 8 }} />
               <Text style={styles.tipText}>
-                First responders will receive this information automatically during an emergency SOS voice call to expedite treatment.
+                {t('profile.tip')}
               </Text>
             </View>
           )}
@@ -393,10 +393,10 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
           {/* Full Name */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>FULL NAME *</Text>
+            <Text style={styles.fieldLabel}>{t('profile.fullName').toUpperCase()} *</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Priya Sharma"
+              placeholder={t('profile.fullNamePlaceholder')}
               placeholderTextColor="rgba(255,255,255,0.25)"
               value={name}
               onChangeText={setName}
@@ -407,7 +407,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
           {/* Phone Number */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>MOBILE NUMBER *</Text>
+            <Text style={styles.fieldLabel}>{t('profile.mobileNumber').toUpperCase()} *</Text>
             <View style={styles.phoneInputRow}>
               <TouchableOpacity
                 style={styles.countryCodeBadge}
@@ -430,7 +430,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
           {/* Date of Birth row */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>DATE OF BIRTH (DD-MM-YYYY) *</Text>
+            <Text style={styles.fieldLabel}>{t('profile.dob').toUpperCase()} *</Text>
             <View style={styles.dobRow}>
               <TextInput
                 style={[styles.input, styles.dobDayInput]}
@@ -482,7 +482,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
           {/* Gender selection */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>GENDER *</Text>
+            <Text style={styles.fieldLabel}>{t('profile.gender').toUpperCase()} *</Text>
             <View style={styles.genderRow}>
               {GENDERS.map((g) => {
                 const isSelected = gender === g;
@@ -506,7 +506,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
           {/* Blood Group selection */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>BLOOD GROUP *</Text>
+            <Text style={styles.fieldLabel}>{t('profile.bloodGroup').toUpperCase()} *</Text>
             <View style={styles.bloodGrid}>
               {BLOOD_GROUPS.map((bg) => {
                 const isSelected = bloodGroup === bg;
@@ -530,7 +530,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
           {/* Medical Conditions */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>MEDICAL CONDITIONS / ALLERGIES</Text>
+            <Text style={styles.fieldLabel}>{t('profile.conditions').toUpperCase()}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="e.g. Asthma, Diabetes, Penicillin Allergy, None"
@@ -589,7 +589,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
           <View style={styles.footerButtons}>
             <View style={styles.cancelBtnWrap}>
               <CustomButton
-                label={isForceOnboarding ? "Skip" : "Cancel"}
+                label={isForceOnboarding ? t('profile.skipSetup') : t('profile.cancel')}
                 onPress={handleCancel}
                 variant="secondary"
                 size="lg"
@@ -598,7 +598,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
             </View>
             <View style={styles.submitBtnWrap}>
               <CustomButton
-                label={isForceOnboarding ? "Finish & Go to Home" : "Save Medical ID"}
+                label={isForceOnboarding ? t('profile.save') : t('profile.save')}
                 onPress={handleSave}
                 variant="primary"
                 size="lg"

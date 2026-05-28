@@ -8,6 +8,7 @@ import { textStyles } from '../../theme/typography';
 import { spacing, radius } from '../../theme/spacing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from '../../context/LocalizationContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CrashCountdown'>;
 
@@ -16,6 +17,7 @@ const INITIAL_SECONDS = 10;
 export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.Element {
   const { event } = route.params;
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [seconds, setSeconds] = useState(INITIAL_SECONDS);
   const [handled, setHandled] = useState(false);
 
@@ -111,10 +113,10 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
         </View>
 
         <Text style={[textStyles.displayMedium, styles.heading]}>
-          Impact Detected!
+          {t('crash.impactDetected')}
         </Text>
         <Text style={[textStyles.bodyLarge, styles.subheading]}>
-          Are you okay? An emergency SOS alert will be sent in:
+          {t('crash.areYouOkay')}
         </Text>
 
         {/* Custom Premium Countdown Progress Ring */}
@@ -123,7 +125,7 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
           <Animated.View style={[styles.ringProgress, { borderColor: colors.emergency, opacity: progressAnim }]} />
           <View style={styles.ringInner}>
             <Text style={styles.counterText}>{seconds}</Text>
-            <Text style={styles.secLabel}>SECONDS</Text>
+            <Text style={styles.secLabel}>{t('crash.seconds')}</Text>
           </View>
         </View>
 
@@ -138,10 +140,10 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
             accessibilityLabel="I'm okay, cancel SOS"
           >
             <Ionicons name="checkmark-circle-outline" size={24} color="#FFFFFF" style={{ marginRight: spacing[2] }} />
-            <Text style={styles.cancelBtnText}>I'M OKAY, CANCEL SOS</Text>
+            <Text style={styles.cancelBtnText}>{t('crash.imOkay')}</Text>
           </Pressable>
           <Text style={styles.infoNote}>
-            Calling emergency 112 & alerting contacts automatically
+            {t('crash.autoAlert')}
           </Text>
         </View>
       </View>

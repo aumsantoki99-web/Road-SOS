@@ -168,10 +168,11 @@ function ActionTile({ icon, label, sublabel, color, onPress, badge, hero = false
 
 function SafetyScoreCard(): React.JSX.Element {
   const { colors, isDark } = useTheme();
+  const { t } = useTranslation();
   const stats = [
-    { value: mockRideHistory.length, label: 'Rides', icon: 'speedometer-outline' },
-    { value: mockContacts.length,    label: 'Contacts', icon: 'people-outline' },
-    { value: 0,                      label: 'Incidents', icon: 'shield-checkmark-outline' },
+    { value: mockRideHistory.length, label: t('home.rides'), icon: 'speedometer-outline' },
+    { value: mockContacts.length,    label: t('home.contacts'), icon: 'people-outline' },
+    { value: 0,                      label: t('home.incidents'), icon: 'shield-checkmark-outline' },
   ];
 
   return (
@@ -182,14 +183,14 @@ function SafetyScoreCard(): React.JSX.Element {
     ]}>
       <View style={styles.scoreHeader}>
         <View>
-          <Text style={[textStyles.labelCaps, { color: colors.textTertiary }]}>SAFETY OVERVIEW</Text>
+          <Text style={[textStyles.labelCaps, { color: colors.textTertiary }]}>{t('home.safetyOverview')}</Text>
           <Text style={[textStyles.headingSmall, { color: colors.textPrimary, marginTop: spacing[1] }]}>
-            All systems ready
+            {t('home.allSystemsReady')}
           </Text>
         </View>
         <View style={[styles.scoreBadge, { backgroundColor: colors.safeSubtle }]}>
           <Ionicons name="shield-checkmark" size={16} color={colors.safe} />
-          <Text style={[textStyles.labelMedium, { color: colors.safeText, marginLeft: spacing[1] }]}>SAFE</Text>
+          <Text style={[textStyles.labelMedium, { color: colors.safeText, marginLeft: spacing[1] }]}>{t('home.safe')}</Text>
         </View>
       </View>
 
@@ -215,13 +216,14 @@ function SafetyScoreCard(): React.JSX.Element {
 
 function ActivityTimeline({ rides }: { rides: typeof mockRideHistory }): React.JSX.Element {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   if (rides.length === 0) {
     return (
       <View style={[styles.emptyActivity, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
         <Ionicons name="bicycle-outline" size={32} color={colors.textTertiary} />
         <Text style={[textStyles.bodySmall, { color: colors.textTertiary, marginTop: spacing[2] }]}>
-          Start your first ride
+          {t('home.startFirstRide')}
         </Text>
       </View>
     );
@@ -258,7 +260,14 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const { state } = useAppState();
   const nav = useAppNavigation();
-  const { greeting, isNightRide } = useGreeting();
+  const { period, isNightRide } = useGreeting();
+  const greeting = period === 'morning'
+    ? t('home.goodMorning')
+    : period === 'afternoon'
+    ? t('home.goodAfternoon')
+    : period === 'evening'
+    ? t('home.goodEvening')
+    : t('home.helloRider');
 
   const [isOffline]  = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -372,7 +381,7 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
               <View style={[styles.nightBadge, { backgroundColor: '#1A0505', borderColor: '#3D0A0A' }]}>
                 <Ionicons name="moon" size={12} color="#FF8080" />
                 <Text style={[textStyles.caption, { color: '#FF8080', marginLeft: spacing[1] }]}>
-                  Night mode · Red-black palette active
+                  {t('settings.nightModeActive')}
                 </Text>
               </View>
             )}
@@ -390,7 +399,7 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
           >
             {/* SOS context label */}
             <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginBottom: spacing[4] }]}>
-              EMERGENCY
+              {t('home.emergency')}
             </Text>
 
             <FloatingSOSButton size="hero" onPress={() => nav.navigate('SOSConfirmation')} />
@@ -398,7 +407,7 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
             <View style={styles.sosMeta}>
               <Ionicons name="people-outline" size={13} color={colors.textTertiary} />
               <Text style={[textStyles.caption, { color: colors.textTertiary, marginLeft: spacing[1] }]}>
-                {contactCount} contact{contactCount !== 1 ? 's' : ''} will be alerted
+                {contactCount} {t('home.contactsAlerted')}
               </Text>
             </View>
           </Animated.View>
@@ -424,10 +433,10 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
                 <Ionicons name="alert-circle" size={24} color={colors.emergency} />
                 <View style={{ flex: 1, marginLeft: spacing[3] }}>
                   <Text style={[textStyles.headingSmall, { color: colors.emergency }]}>
-                    Action Required
+                    {t('home.actionRequired')}
                   </Text>
                   <Text style={[textStyles.bodySmall, { color: colors.textSecondary, marginTop: 2 }]}>
-                    Complete Emergency Medical ID to enable safety sensors.
+                    {t('home.completeProfile')}
                   </Text>
                 </View>
                 <Ionicons name="arrow-forward" size={18} color={colors.emergency} />
@@ -446,14 +455,14 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
             ]}
           >
             <View style={styles.sectionHeader}>
-              <Text style={[textStyles.labelCaps, { color: colors.textTertiary }]}>QUICK ACTIONS</Text>
+              <Text style={[textStyles.labelCaps, { color: colors.textTertiary }]}>{t('home.quickActions')}</Text>
             </View>
 
             {/* Hero action — Start/Stop Ride — full width */}
             <ActionTile
               icon={rideStatus === 'active' ? 'stop-circle' : 'speedometer'}
-              label={rideStatus === 'active' ? 'Stop Ride' : 'Start Ride'}
-              sublabel={rideStatus === 'active' ? 'Monitoring active' : 'Begin safety monitoring'}
+              label={rideStatus === 'active' ? t('home.stopRide') : t('home.startRide')}
+              sublabel={rideStatus === 'active' ? t('home.monitoringActive') : t('home.beginMonitoring')}
               color={rideStatus === 'active' ? colors.emergency : colors.safe}
               onPress={() => nav.navigate('Ride' as never)}
               hero
@@ -465,8 +474,8 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
             <View style={styles.actionRow}>
               <ActionTile
                 icon="people"
-                label="Contacts"
-                sublabel={`${contactCount} saved`}
+                label={t('home.contacts')}
+                sublabel={`${contactCount} ${t('home.contactsCount')}`}
                 color={colors.accent}
                 onPress={() => nav.navigate('Contacts' as never)}
                 badge={contactCount}
@@ -474,16 +483,16 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
               <View style={{ width: spacing[3] }} />
               <ActionTile
                 icon="medical"
-                label="Hospitals"
-                sublabel="Nearest: 2.3 km"
+                label={t('home.hospitals')}
+                sublabel={t('home.nearestHospital')}
                 color="#EF4444"
                 onPress={() => nav.navigate('Hospitals' as never)}
               />
               <View style={{ width: spacing[3] }} />
               <ActionTile
                 icon="cloud-offline"
-                label="Offline"
-                sublabel={isOffline ? 'Active' : 'Ready'}
+                label={t('home.offline')}
+                sublabel={isOffline ? t('home.active') : t('home.ready')}
                 color={colors.info}
                 onPress={() => nav.navigate('OfflineMode')}
               />
