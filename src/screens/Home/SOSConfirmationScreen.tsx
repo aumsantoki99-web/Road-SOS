@@ -38,7 +38,7 @@ import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 import { mockContacts } from '../../mock';
 import type { RootScreenNavigationProp } from '../../navigation/types';
-import { EmergencyService, NotificationService, SosService } from '../../services';
+import { NotificationService, SosService } from '../../services';
 const SOS_SECONDS = 10;
 
 type Props = { navigation: RootScreenNavigationProp<'SOSConfirmation'> };
@@ -83,7 +83,7 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
       try {
         // Trigger premium RoadGuard dispatching service
         const result = await SosService.triggerSOS(manualEvent, 'manual_sos_button');
-        await NotificationService.notifySOSSent(2);
+        await NotificationService.notifySOSSent(result.contactsReached);
 
         // Start ride session automatically!
         rideSession.startRide();
@@ -99,7 +99,7 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
         nav.goBack();
       }
     })();
-  }, [nav]);
+  }, [nav, rideSession]);
 
   const handleCancel = useCallback((): void => nav.goBack(), [nav]);
 

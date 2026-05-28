@@ -54,7 +54,7 @@ export const NotificationService = {
    */
   async requestPermissions(): Promise<boolean> {
     console.warn('[NotificationService] requestPermissions() — mock. Wire expo-notifications here.');
-    this.isPermissionGranted = true; // mock approval
+    NotificationService.isPermissionGranted = true; // mock approval
     return true;
   },
 
@@ -91,7 +91,7 @@ export const NotificationService = {
    * Called by CrashDetectionService listener in RideMonitoringScreen.
    */
   async notifyCrashDetected(countdownSeconds: number): Promise<void> {
-    await this.schedule({
+    await NotificationService.schedule({
       type: 'crash_detected',
       title: '🚨 Crash Detected',
       body: `RideSafe will alert your contacts in ${countdownSeconds} seconds. Open app to cancel.`,
@@ -103,7 +103,7 @@ export const NotificationService = {
    * Send SOS dispatched confirmation.
    */
   async notifySOSSent(contactCount: number): Promise<void> {
-    await this.schedule({
+    await NotificationService.schedule({
       type: 'sos_sent',
       title: '✅ SOS Alert Sent',
       body: `Emergency alert sent to ${contactCount} contact${contactCount !== 1 ? 's' : ''}.`,

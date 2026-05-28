@@ -432,7 +432,7 @@ out body center 1;`;
           .slice(0, maxResults);
 
         if (mapped.length > 0) {
-          this.isLiveData = true;
+          HospitalService.isLiveData = true;
           lastResults = mapped;
           return mapped;
         }
@@ -445,7 +445,7 @@ out body center 1;`;
     const liveHospitals = await queryOverpass(location, radiusMeters);
 
     if (liveHospitals.length > 0) {
-      this.isLiveData = true;
+      HospitalService.isLiveData = true;
       const filtered = liveHospitals
         .filter((h) => !emergencyOnly || h.isEmergencyCenter)
         .slice(0, maxResults);
@@ -454,7 +454,7 @@ out body center 1;`;
     }
 
     // Overpass failed — use fallback with real distances
-    this.isLiveData = false;
+    HospitalService.isLiveData = false;
     console.warn('[HospitalService] All Overpass endpoints failed — using demo fallback');
     const fallback = fallbackHospitals(location, maxResults, emergencyOnly);
     lastResults = fallback;

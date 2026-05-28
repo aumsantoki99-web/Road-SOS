@@ -89,7 +89,7 @@ export const CrashDetectionService = {
   _listeners: [] as CrashCallback[],
 
   async start(sensitivity: 'low' | 'medium' | 'high' = 'high'): Promise<void> {
-    if (this.isActive) return;
+    if (CrashDetectionService.isActive) return;
 
     activeSensitivity = sensitivity;
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -97,7 +97,7 @@ export const CrashDetectionService = {
       console.warn('[CrashDetectionService] Location permission denied; sensor-only validation enabled.');
     }
 
-    this.isActive = true;
+    CrashDetectionService.isActive = true;
     validatingGps = false;
     accelAboveSince = null;
     gyroAboveSince = null;
@@ -110,27 +110,27 @@ export const CrashDetectionService = {
     Gyroscope.setUpdateInterval(100);
 
     accelSub = Accelerometer.addListener(({ x, y, z }) => {
-      if (!this.isActive || validatingGps) return;
+      if (!CrashDetectionService.isActive || validatingGps) return;
 
       const magnitude = Math.sqrt(x * x + y * y + z * z);
       const netG = Math.abs(magnitude - GRAVITY_G);
       peakGForce = Math.max(peakGForce, netG);
 
       const now = Date.now();
-      const thresholdG = this.getThreshold(activeSensitivity);
+      const thresholdG = CrashDetectionService.getThreshold(activeSensitivity);
       accelAboveSince = netG >= thresholdG ? accelAboveSince ?? now : null;
-      this._checkImpact(now);
+      CrashDetectionService._checkImpact(now);
     });
 
     gyroSub = Gyroscope.addListener(({ x, y, z }) => {
-      if (!this.isActive || validatingGps) return;
+      if (!CrashDetectionService.isActive || validatingGps) return;
 
       const gyroMag = Math.sqrt(x * x + y * y + z * z);
       peakGyroRadS = Math.max(peakGyroRadS, gyroMag);
 
       const now = Date.now();
       gyroAboveSince = gyroMag >= GYRO_IMPACT_THRESHOLD_RAD_S ? gyroAboveSince ?? now : null;
-      this._checkImpact(now);
+      CrashDetectionService._checkImpact(now);
     });
 
     try {
@@ -172,7 +172,7 @@ export const CrashDetectionService = {
   },
 
   stop(): void {
-    this.isActive = false;
+    CrashDetectionService.isActive = false;
     accelSub?.remove();
     gyroSub?.remove();
     accelSub = null;
@@ -185,9 +185,9 @@ export const CrashDetectionService = {
   },
 
   onCrashDetected(callback: CrashCallback): () => void {
-    this._listeners.push(callback);
+    CrashDetectionService._listeners.push(callback);
     return () => {
-      this._listeners = this._listeners.filter((cb) => cb !== callback);
+      CrashDetectionService._listeners = CrashDetectionService._listeners.filter((cb) => cb !== callback);
     };
   },
 
@@ -198,7 +198,7 @@ export const CrashDetectionService = {
     lastSpeedKmh: number;
   } {
     return {
-      monitoring: this.isActive,
+      monitoring: CrashDetectionService.isActive,
       peakGForce,
       peakGyroRadS,
       lastSpeedKmh,
@@ -234,7 +234,7 @@ export const CrashDetectionService = {
       impactCandidateTime = null;
 
       if (validation.confirmed) {
-        this._notifyListeners({
+        CrashDetectionService._notifyListeners({
           timestamp: eventTime,
           severity: severityFromGForce(peakGForce),
           gForce: peakGForce,
@@ -253,7 +253,7 @@ export const CrashDetectionService = {
   },
 
   _notifyListeners(event: CrashEvent): void {
-    this._listeners.forEach((callback) => callback(event));
+    CrashDetectionService._listeners.forEach((callback) => callback(event));
     try {
       navigate('CrashCountdown', { event });
     } catch (e) {
@@ -263,7 +263,7 @@ export const CrashDetectionService = {
 
   _simulateCrash(severity: CrashSeverity = 'moderate'): void {
     const gForce = severity === 'minor' ? 2.0 : severity === 'moderate' ? 3.5 : 6.0;
-    this._notifyListeners({
+    CrashDetectionService._notifyListeners({
       timestamp: Date.now(),
       severity,
       gForce,
