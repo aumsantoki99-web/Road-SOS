@@ -45,9 +45,29 @@ interface MedicalIDScreenProps {
 const BLOOD_GROUPS: MedicalProfile['bloodGroup'][] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const GENDERS: MedicalProfile['gender'][] = ['Male', 'Female', 'Other'];
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  en: 'English',
+  hi: 'हिन्दी (Hindi)',
+  gu: 'ગુજરાતી (Gujarati)',
+  mr: 'मराठी (Marathi)',
+  ta: 'தமிழ் (Tamil)',
+  te: 'తెలుగు (Telugu)',
+  bn: 'বাংলা (Bengali)',
+  kn: 'ಕನ್ನಡ (Kannada)',
+  ml: 'മലയാളം (Malayalam)',
+  pa: 'ਪੰਜਾਬੀ (Punjabi)',
+  ur: 'اردو (Urdu)',
+  es: 'Español (Spanish)',
+  fr: 'Français (French)',
+  de: 'Deutsch (German)',
+  ar: 'العربية (Arabic)',
+  ja: '日本語 (Japanese)',
+  zh: '简体中文 (Chinese)',
+};
+
 export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Element {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const nav = useAppNavigation();
 
   const isForceOnboarding = route?.params?.isForceOnboarding ?? false;
@@ -315,6 +335,24 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
               </Text>
             </View>
           )}
+
+          {/* Language Selection option in Profile */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>{t('settings.language').toUpperCase()} *</Text>
+            <TouchableOpacity
+              style={styles.languageSelector}
+              onPress={() => setIsLanguageModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.languageSelectorLeft}>
+                <Ionicons name="language-outline" size={20} color="#EF4444" style={{ marginRight: 12 }} />
+                <Text style={styles.languageSelectorText}>
+                  {LANGUAGE_LABELS[language] || 'English'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward-outline" size={18} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
+          </View>
 
           {/* Full Name */}
           <View style={styles.field}>
@@ -756,6 +794,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#EF4444',
     fontWeight: '600',
+  },
+  languageSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[4],
+    height: 52,
+  },
+  languageSelectorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  languageSelectorText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
   footer: {
     padding: 24,
