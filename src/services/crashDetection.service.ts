@@ -33,7 +33,7 @@ const DEFAULT_LOCATION = { latitude: 23.0225, longitude: 72.5714 };
 
 let accelSub: SensorSubscription | null = null;
 let gyroSub: SensorSubscription | null = null;
-let gpsTimer: ReturnType<typeof setInterval> | null = null;
+let gpsSubscription: { remove: () => void } | null = null;
 let accelAboveSince: number | null = null;
 let gyroAboveSince: number | null = null;
 let impactCandidateTime: number | null = null;
@@ -52,25 +52,7 @@ function severityFromGForce(gForce: number): CrashSeverity {
   return 'minor';
 }
 
-async function pollGps(): Promise<void> {
-  try {
-    const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
 
-    lastLatitude = position.coords.latitude;
-    lastLongitude = position.coords.longitude;
-
-    if (position.coords.speed !== null && position.coords.speed >= 0) {
-      lastSpeedKmh = position.coords.speed * 3.6;
-    }
-
-    speedHistory.push({ time: Date.now(), speedKmh: lastSpeedKmh });
-    if (speedHistory.length > 30) speedHistory.shift();
-  } catch (error) {
-    console.warn('[CrashDetectionService] GPS poll failed:', error);
-  }
-}
 
 function validateWithGps(impactTime: number): { confirmed: boolean; before: number; after: number } {
   const windowEnd = impactTime + GPS_VALIDATION_MS;
@@ -151,10 +133,42 @@ export const CrashDetectionService = {
       this._checkImpact(now);
     });
 
-    await pollGps();
-    gpsTimer = setInterval(() => {
-      void pollGps();
-    }, GPS_SAMPLE_MS);
+    try {
+      const last = await Location.getLastKnownPositionAsync({});
+      if (last) {
+        lastLatitude = last.coords.latitude;
+        lastLongitude = last.coords.longitude;
+        if (last.coords.speed !== null && last.coords.speed >= 0) {
+          lastSpeedKmh = last.coords.speed * 3.6;
+        }
+        speedHistory.push({ time: Date.now(), speedKmh: lastSpeedKmh });
+      }
+    } catch (err) {
+      console.warn('[CrashDetectionService] Failed to get initial last known position:', err);
+    }
+
+    try {
+      gpsSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 1000,
+          distanceInterval: 1,
+        },
+        (position) => {
+          lastLatitude = position.coords.latitude;
+          lastLongitude = position.coords.longitude;
+
+          if (position.coords.speed !== null && position.coords.speed >= 0) {
+            lastSpeedKmh = position.coords.speed * 3.6;
+          }
+
+          speedHistory.push({ time: Date.now(), speedKmh: lastSpeedKmh });
+          if (speedHistory.length > 30) speedHistory.shift();
+        }
+      );
+    } catch (err) {
+      console.warn('[CrashDetectionService] Failed to start passive watchPositionAsync:', err);
+    }
   },
 
   stop(): void {
@@ -164,8 +178,10 @@ export const CrashDetectionService = {
     accelSub = null;
     gyroSub = null;
 
-    if (gpsTimer) clearInterval(gpsTimer);
-    gpsTimer = null;
+    if (gpsSubscription) {
+      gpsSubscription.remove();
+      gpsSubscription = null;
+    }
   },
 
   onCrashDetected(callback: CrashCallback): () => void {
@@ -228,6 +244,10 @@ export const CrashDetectionService = {
           speedBeforeKmh: validation.before,
           speedAfterKmh: validation.after,
         });
+      } else {
+        // Reset peaks since this impact candidate failed validation
+        peakGForce = 0;
+        peakGyroRadS = 0;
       }
     }, GPS_VALIDATION_MS);
   },

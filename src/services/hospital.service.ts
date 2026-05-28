@@ -40,6 +40,7 @@ const DEFAULT_LOCATION = { latitude: 22.3039, longitude: 70.8022 };
 
 let lastResults: Hospital[] = [];
 let cachedUserLocation: UserLocation | null = null;
+let lastCacheTime: number | null = null;
 
 export function haversineKm(from: UserLocation, to: UserLocation): number {
   const earthRadiusKm = 6371;
@@ -357,7 +358,7 @@ out body center 1;`;
 
   async getUserLocation(): Promise<UserLocation> {
     // Return cached location if fresh (< 30s old)
-    if (cachedUserLocation) {
+    if (cachedUserLocation && lastCacheTime && (Date.now() - lastCacheTime < 30000)) {
       return cachedUserLocation;
     }
 
@@ -372,6 +373,7 @@ out body center 1;`;
       const last = await Location.getLastKnownPositionAsync({});
       if (last) {
         cachedUserLocation = { latitude: last.coords.latitude, longitude: last.coords.longitude };
+        lastCacheTime = Date.now();
         console.log(`[HospitalService] Last known position: ${cachedUserLocation.latitude}, ${cachedUserLocation.longitude}`);
       }
 
@@ -380,6 +382,7 @@ out body center 1;`;
         accuracy: Location.Accuracy.Balanced,
       });
       cachedUserLocation = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      lastCacheTime = Date.now();
       console.log(`[HospitalService] Fresh GPS: ${cachedUserLocation.latitude}, ${cachedUserLocation.longitude}`);
 
       return cachedUserLocation;

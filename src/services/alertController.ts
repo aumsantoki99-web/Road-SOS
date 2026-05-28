@@ -1,5 +1,6 @@
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { stopBackgroundLocationUpdates } from './sosService';
 
 let sound: Audio.Sound | null = null;
 let vibrateTimer: ReturnType<typeof setInterval> | null = null;
@@ -25,6 +26,10 @@ export const AlertController = {
         require('../assets/sounds/alarm.mp3'),
         { isLooping: true, shouldPlay: true, volume: MAX_ALERT_VOLUME, isMuted: false },
       );
+      if (!active) {
+        await s.unloadAsync();
+        return;
+      }
       sound = s;
       await sound.setVolumeAsync(MAX_ALERT_VOLUME);
       await sound.setIsMutedAsync(false);
@@ -36,6 +41,10 @@ export const AlertController = {
           { uri: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav' },
           { isLooping: true, shouldPlay: true, volume: MAX_ALERT_VOLUME, isMuted: false },
         );
+        if (!active) {
+          await s.unloadAsync();
+          return;
+        }
         sound = s;
         await sound.setVolumeAsync(MAX_ALERT_VOLUME);
         await sound.setIsMutedAsync(false);
@@ -66,6 +75,11 @@ export const AlertController = {
     if (volumeEnforceTimer) {
       clearInterval(volumeEnforceTimer);
       volumeEnforceTimer = null;
+    }
+    try {
+      stopBackgroundLocationUpdates();
+    } catch (err) {
+      console.warn('[AlertController] Failed to stop background location sync:', err);
     }
     try {
       if (sound) {
