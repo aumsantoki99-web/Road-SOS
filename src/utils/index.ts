@@ -77,7 +77,7 @@ export function formatPhoneNumber(phone: string): string {
  */
 export function isValidPhone(phone: string): boolean {
   const cleaned = phone.replace(/\D/g, '');
-  return /^[6-9]\d{9}$/.test(cleaned);
+  return cleaned.length >= 7 && cleaned.length <= 15;
 }
 
 // ─── Distance ─────────────────────────────────────────────────────────────────

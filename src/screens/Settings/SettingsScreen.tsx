@@ -268,10 +268,31 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
     DEFAULT_PREFERENCES,
   );
 
+  // Sync preferences state with context language dynamically to prevent stale overwrites
+  useEffect(() => {
+    if (prefs && prefs.language !== language) {
+      void updatePref('language', language);
+    }
+  }, [language, prefs?.language]);
+
   const languageOptions: { value: AppLanguage; label: string }[] = [
     { value: 'en', label: t('settings.languageEnglish') },
     { value: 'hi', label: t('settings.languageHindi') },
     { value: 'gu', label: t('settings.languageGujarati') },
+    { value: 'mr', label: t('settings.languageMarathi') },
+    { value: 'ta', label: t('settings.languageTamil') },
+    { value: 'te', label: t('settings.languageTelugu') },
+    { value: 'bn', label: t('settings.languageBengali') },
+    { value: 'kn', label: t('settings.languageKannada') },
+    { value: 'ml', label: t('settings.languageMalayalam') },
+    { value: 'pa', label: t('settings.languagePunjabi') },
+    { value: 'ur', label: t('settings.languageUrdu') },
+    { value: 'es', label: t('settings.languageSpanish') },
+    { value: 'fr', label: t('settings.languageFrench') },
+    { value: 'de', label: t('settings.languageGerman') },
+    { value: 'ar', label: t('settings.languageArabic') },
+    { value: 'ja', label: t('settings.languageJapanese') },
+    { value: 'zh', label: t('settings.languageChinese') },
   ];
 
   async function updatePref<K extends keyof UserPreferences>(
@@ -547,10 +568,12 @@ const styles = StyleSheet.create({
   themeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing[2],
+    gap: spacing[3],
   },
   themeCard: {
-    width: '47%',
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: '45%',
     alignItems: 'center',
     padding: spacing[3],
     borderRadius: radius.lg,

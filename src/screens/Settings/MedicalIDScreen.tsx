@@ -29,6 +29,7 @@ import { StorageService } from '../../storage/StorageService';
 import { STORAGE_KEYS, EMERGENCY_SERVER } from '../../constants';
 import { CustomButton } from '../../components/common/CustomButton';
 import { LanguageSelectionModal } from '../../components/common/LanguageSelectionModal';
+import { CountrySelectionModal, COUNTRY_CODES, type CountryCodeOption } from '../../components/common/CountrySelectionModal';
 import { spacing, radius, borderWidth, layout } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
@@ -90,6 +91,8 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<CountryCodeOption>(COUNTRY_CODES[0] || { code: '+91', flag: '🇮🇳', name: 'India' });
+  const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
 
   // References for automatic textinput focus jumping
   const monthInputRef = useRef<TextInput>(null);
@@ -120,11 +123,32 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
       if (result.success && result.data) {
         const p = result.data;
         setName(p.name || '');
-        setPhone(p.phone || '');
         setGender(p.gender || '');
         setBloodGroup(p.bloodGroup || '');
         setConditions(p.conditions || '');
         setServerUrl(p.serverUrl || EMERGENCY_SERVER.DEFAULT_URL);
+
+        if (p.phone) {
+          // Check if it starts with any known country code
+          const found = COUNTRY_CODES.find(c => p.phone.startsWith(c.code));
+          if (found) {
+            setSelectedCountry(found);
+            setPhone(p.phone.slice(found.code.length));
+          } else if (p.phone.startsWith('+')) {
+            const digitsMatch = p.phone.match(/^\+(\d{1,4})/);
+            if (digitsMatch) {
+              const code = `+${digitsMatch[1]}`;
+              setSelectedCountry({ code, flag: '🌐', name: 'Other' });
+              setPhone(p.phone.slice(code.length));
+            } else {
+              setPhone(p.phone);
+            }
+          } else {
+            setPhone(p.phone);
+          }
+        } else {
+          setPhone('');
+        }
 
         if (p.dob) {
           const parts = p.dob.split('-');
@@ -146,15 +170,12 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
     }
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      Alert.alert(
-        'Medical ID Required',
-        'Please complete your Emergency Medical ID details to proceed. This data is critical for emergency services if a crash is detected.'
-      );
+      handleCancel();
       return true;
     });
 
     return () => backHandler.remove();
-  }, [isForceOnboarding]);
+  }, [isForceOnboarding, selectedCountry, phone]);
 
   // Request SMS permission upfront during forced onboarding
   useEffect(() => {
@@ -216,8 +237,9 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
       Alert.alert('Validation Error', 'Please enter your full name.');
       return;
     }
-    if (!phone.trim() || phone.length < 10) {
-      Alert.alert('Validation Error', 'Please enter a valid 10-digit mobile number.');
+    const cleanedPhone = phone.replace(/\D/g, '');
+    if (!phone.trim() || cleanedPhone.length < 7 || cleanedPhone.length > 15) {
+      Alert.alert('Validation Error', 'Please enter a valid mobile number (7 to 15 digits).');
       return;
     }
     if (!gender) {
@@ -239,7 +261,7 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
     const profileData: MedicalProfile = {
       name: name.trim(),
-      phone: phone.trim(),
+      phone: `${selectedCountry.code}${phone.trim()}`,
       gender,
       dob: formattedDob,
       age,
@@ -276,7 +298,24 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
 
   const handleCancel = () => {
     if (isForceOnboarding) {
-      Alert.alert('Action Restricted', 'For your safety, completing the Emergency Medical ID is required before riding.');
+      Alert.alert(
+        'Skip Medical ID Setup?',
+        'Would you like to skip Emergency Medical ID setup for now?\n\n⚠️ Note: Active crash sensors and auto-SOS dispatch features will remain disabled until your profile is complete.',
+        [
+          { text: 'Keep Setting Up', style: 'cancel' },
+          {
+            text: 'Skip Setup',
+            style: 'destructive',
+            onPress: async () => {
+              await StorageService.set(STORAGE_KEYS.PROFILE_SETUP_DONE, 'false');
+              nav.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            },
+          },
+        ]
+      );
     } else {
       nav.goBack();
     }
@@ -308,16 +347,14 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
               </Text>
             </View>
           </View>
-          {!isForceOnboarding && (
-            <TouchableOpacity
-              onPress={handleCancel}
-              style={styles.closeBtn}
-              accessibilityLabel="Cancel"
-              accessibilityRole="button"
-            >
-              <Ionicons name="close" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={handleCancel}
+            style={styles.closeBtn}
+            accessibilityLabel="Cancel"
+            accessibilityRole="button"
+          >
+            <Ionicons name="close" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -372,17 +409,21 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>MOBILE NUMBER *</Text>
             <View style={styles.phoneInputRow}>
-              <View style={styles.countryCodeBadge}>
-                <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.countryCodeBadge}
+                onPress={() => setIsCountryModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.countryCodeText}>{selectedCountry.flag} {selectedCountry.code}</Text>
+              </TouchableOpacity>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="98765 43210"
                 placeholderTextColor="rgba(255,255,255,0.25)"
                 value={phone}
-                onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))}
+                onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 15))}
                 keyboardType="phone-pad"
-                maxLength={10}
+                maxLength={15}
               />
             </View>
           </View>
@@ -540,22 +581,21 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
               </View>
             </View>
           )}
+          <View style={{ height: 80 }} />
         </ScrollView>
 
         {/* Footer */}
         <View style={styles.footer}>
           <View style={styles.footerButtons}>
-            {!isForceOnboarding && (
-              <View style={styles.cancelBtnWrap}>
-                <CustomButton
-                  label="Cancel"
-                  onPress={handleCancel}
-                  variant="secondary"
-                  size="lg"
-                  fullWidth
-                />
-              </View>
-            )}
+            <View style={styles.cancelBtnWrap}>
+              <CustomButton
+                label={isForceOnboarding ? "Skip" : "Cancel"}
+                onPress={handleCancel}
+                variant="secondary"
+                size="lg"
+                fullWidth
+              />
+            </View>
             <View style={styles.submitBtnWrap}>
               <CustomButton
                 label={isForceOnboarding ? "Finish & Go to Home" : "Save Medical ID"}
@@ -570,6 +610,13 @@ export function MedicalIDScreen({ route }: MedicalIDScreenProps): React.JSX.Elem
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <CountrySelectionModal
+        visible={isCountryModalVisible}
+        onClose={() => setIsCountryModalVisible(false)}
+        onSelect={(country) => setSelectedCountry(country)}
+        selectedCode={selectedCountry.code}
+      />
     </SafeAreaView>
   );
 }

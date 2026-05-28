@@ -30,6 +30,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { useSOSCountdown } from '../../hooks/useSOSCountdown';
 import { useRideSession } from '../../hooks/useRideSession';
@@ -45,6 +46,7 @@ type Props = { navigation: RootScreenNavigationProp<'SOSConfirmation'> };
 
 export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const nav = useAppNavigation();
   const hasSentRef = useRef(false);
   const rideSession = useRideSession();
@@ -95,7 +97,7 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
         });
       } catch (error) {
         console.warn('[SOS] Failed to trigger manual alert:', error);
-        Alert.alert('SOS failed', 'The alert could not be prepared. Please call emergency services directly.');
+        Alert.alert(t('sos.failed'), t('sos.failedBody'));
         nav.goBack();
       }
     })();
@@ -150,9 +152,9 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
             <Ionicons name="warning" size={20} color="#FFFFFF" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[textStyles.headingLarge, { color: colors.emergency }]}>SOS Alert</Text>
+            <Text style={[textStyles.headingLarge, { color: colors.emergency }]}>{t('sos.title')}</Text>
             <Text style={[textStyles.bodySmall, { color: colors.textSecondary, marginTop: 2 }]}>
-              Sending emergency alert to your contacts
+              {t('sos.subtitle')}
             </Text>
           </View>
           <View style={[styles.liveBadge, { backgroundColor: colors.emergencySubtle, borderColor: colors.emergencyBorder }]}>
@@ -183,11 +185,11 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
         {/* ── Contacts being alerted ─────────────────────────────────── */}
         <View style={[styles.contactsBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
           <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginBottom: spacing[3] }]}>
-            ALERTING
+            {t('sos.alerting')}
           </Text>
           {mockContacts.length === 0 ? (
             <Text style={[textStyles.bodySmall, { color: colors.textTertiary }]}>
-              No contacts added yet.
+              {t('sos.noContacts')}
             </Text>
           ) : (
             <View style={styles.contactList}>
@@ -223,7 +225,7 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={13} color={colors.textTertiary} />
           <Text style={[textStyles.caption, { color: colors.textTertiary, marginLeft: spacing[1] }]}>
-            Your location will be shared with contacts
+            {t('sos.locationNote')}
           </Text>
         </View>
 
@@ -236,12 +238,12 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
         >
           <Ionicons name="close-circle-outline" size={20} color={colors.textSecondary} />
           <Text style={[textStyles.labelLarge, { color: colors.textPrimary, marginLeft: spacing[2] }]}>
-            Cancel Alert
+            {t('sos.cancelBtn')}
           </Text>
         </TouchableOpacity>
 
         <Text style={[textStyles.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing[3] }]}>
-          Alert sends automatically when timer reaches zero
+          {t('sos.autoSendNote')}
         </Text>
       </View>
     </View>

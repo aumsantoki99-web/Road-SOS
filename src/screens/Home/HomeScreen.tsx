@@ -35,6 +35,7 @@ import { useTranslation } from '../../context/LocalizationContext';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { useGreeting } from '../../hooks/useGreeting';
 import { useFadeIn, useSlideUp } from '../../hooks/useAnimation';
+import { useIsFocused } from '@react-navigation/native';
 
 import { OfflineBanner } from '../../components/banners/OfflineBanner';
 import { FloatingSOSButton } from '../../components/buttons/FloatingSOSButton';
@@ -56,9 +57,13 @@ function SafetyStatusChip({ rideStatus }: { rideStatus: string }): React.JSX.Ele
   const { colors } = useTheme();
   const { t } = useTranslation();
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const isFocused = useIsFocused();
 
   useEffect(() => {
-    if (rideStatus !== 'active') return;
+    if (rideStatus !== 'active' || !isFocused) {
+      pulseAnim.setValue(1);
+      return;
+    }
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
@@ -67,7 +72,7 @@ function SafetyStatusChip({ rideStatus }: { rideStatus: string }): React.JSX.Ele
     );
     pulse.start();
     return () => pulse.stop();
-  }, [rideStatus, pulseAnim]);
+  }, [rideStatus, pulseAnim, isFocused]);
 
   const isActive = rideStatus === 'active';
   const dotColor = isActive ? colors.safe : colors.textTertiary;
@@ -257,6 +262,8 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
 
   const [isOffline]  = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+  const isFocused = useIsFocused();
 
   // Entrance animations
   const headerFade = useFadeIn(400, 100);
@@ -265,17 +272,25 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
   useEffect(() => {
     headerFade.start();
     contentSlide.start();
-
-    // Check if the Emergency Medical ID is configured
-    async function checkMedicalId() {
-      const result = await StorageService.get<string>(STORAGE_KEYS.PROFILE_SETUP_DONE);
-      if (!result.success || result.data !== 'true') {
-        console.log('[HomeScreen] Medical ID profile setup incomplete. Launching forced onboarding.');
-        nav.navigate('MedicalID', { isForceOnboarding: true });
-      }
-    }
-    void checkMedicalId();
   }, []);
+
+  useEffect(() => {
+    if (isFocused) {
+      async function checkMedicalId() {
+        const result = await StorageService.get<string>(STORAGE_KEYS.PROFILE_SETUP_DONE);
+        const isSetup = result.success && result.data === 'true';
+        const hasNeverSetup = !result.success || result.data === null || result.data === undefined;
+
+        setProfileComplete(isSetup);
+
+        if (hasNeverSetup) {
+          console.log('[HomeScreen] Medical ID profile setup never done. Launching forced onboarding.');
+          nav.navigate('MedicalID', { isForceOnboarding: true });
+        }
+      }
+      void checkMedicalId();
+    }
+  }, [isFocused]);
 
   const currentRide  = state.currentRide;
   const rideStatus   = currentRide?.status ?? 'idle';
@@ -387,6 +402,38 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
               </Text>
             </View>
           </Animated.View>
+
+          {/* ── Profile Incomplete Warning Banner ──────────────────────── */}
+          {profileComplete === false && (
+            <Animated.View
+              style={[
+                styles.warningBanner,
+                {
+                  opacity: contentSlide.opacity,
+                  transform: [{ translateY: contentSlide.translateY }],
+                  backgroundColor: `${colors.emergency}14`,
+                  borderColor: `${colors.emergency}36`,
+                }
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() => nav.navigate('MedicalID')}
+                style={styles.warningBannerContent}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="alert-circle" size={24} color={colors.emergency} />
+                <View style={{ flex: 1, marginLeft: spacing[3] }}>
+                  <Text style={[textStyles.headingSmall, { color: colors.emergency }]}>
+                    Action Required
+                  </Text>
+                  <Text style={[textStyles.bodySmall, { color: colors.textSecondary, marginTop: 2 }]}>
+                    Complete Emergency Medical ID to enable safety sensors.
+                  </Text>
+                </View>
+                <Ionicons name="arrow-forward" size={18} color={colors.emergency} />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
           {/* ── Quick actions — asymmetric hero layout ──────────────────── */}
           <Animated.View
@@ -683,5 +730,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: borderWidth.thin,
     borderStyle: 'dashed',
+  },
+  warningBanner: {
+    marginBottom: spacing[6],
+    borderRadius: radius.xl,
+    borderWidth: borderWidth.medium,
+    overflow: 'hidden',
+  },
+  warningBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing[4],
   },
 });

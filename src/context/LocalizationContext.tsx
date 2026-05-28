@@ -81,7 +81,16 @@ type TranslationKey =
   | 'home.readyToRide'
   | 'contacts.title'
   | 'contacts.add'
-  | 'contacts.loading';
+  | 'contacts.loading'
+  | 'sos.title'
+  | 'sos.subtitle'
+  | 'sos.alerting'
+  | 'sos.noContacts'
+  | 'sos.locationNote'
+  | 'sos.cancelBtn'
+  | 'sos.autoSendNote'
+  | 'sos.failed'
+  | 'sos.failedBody';
 
 type TranslationTable = Partial<Record<TranslationKey, string>>;
 type FullTranslationTable = Record<TranslationKey, string>;
@@ -159,6 +168,15 @@ const baseEnglishTranslations: FullTranslationTable = {
   'contacts.title': 'Contacts',
   'contacts.add': 'Add',
   'contacts.loading': 'Loading contacts...',
+  'sos.title': 'SOS Alert',
+  'sos.subtitle': 'Sending emergency alert to your contacts',
+  'sos.alerting': 'ALERTING',
+  'sos.noContacts': 'No contacts added yet.',
+  'sos.locationNote': 'Your location will be shared with contacts',
+  'sos.cancelBtn': 'Cancel Alert',
+  'sos.autoSendNote': 'Alert sends automatically when timer reaches zero',
+  'sos.failed': 'SOS failed',
+  'sos.failedBody': 'The alert could not be prepared. Please call emergency services directly.',
 };
 
 const translations: Record<AppLanguage, TranslationTable> = {

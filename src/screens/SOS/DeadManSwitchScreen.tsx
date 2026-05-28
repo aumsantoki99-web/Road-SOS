@@ -123,7 +123,7 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: '#09090C' }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
       <LinearGradient
         colors={['rgba(245,158,11,0.15)', 'transparent']}
         style={styles.headerGradient}
@@ -137,21 +137,21 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
           </View>
         </View>
 
-        <Text style={[textStyles.displayMedium, styles.heading]}>
+        <Text style={[textStyles.displayMedium, styles.heading, { color: colors.textPrimary }]}>
           Consciousness Check
         </Text>
         
-        <Text style={[textStyles.bodyLarge, styles.subheading]}>
+        <Text style={[textStyles.bodyLarge, styles.subheading, { color: colors.textSecondary }]}>
           We detected a severe impact and need to verify if you are okay. An emergency SOS dispatch will launch automatically in:
         </Text>
 
         {/* Custom Premium Countdown Progress Ring */}
         <View style={styles.countdownContainer}>
-          <View style={[styles.ringTrack, { borderColor: 'rgba(255,255,255,0.06)' }]} />
+          <View style={[styles.ringTrack, { borderColor: colors.surfaceBorder }]} />
           <Animated.View style={[styles.ringProgress, { borderColor: colors.warning, opacity: progressAnim }]} />
-          <View style={styles.ringInner}>
-            <Text style={styles.counterText}>{seconds}</Text>
-            <Text style={styles.secLabel}>SECONDS</Text>
+          <View style={[styles.ringInner, { backgroundColor: colors.surfaceSecondary }]}>
+            <Text style={[styles.counterText, { color: colors.textPrimary }]}>{seconds}</Text>
+            <Text style={[styles.secLabel, { color: colors.textTertiary }]}>SECONDS</Text>
           </View>
         </View>
 
@@ -167,7 +167,7 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
             <Text style={styles.yesBtnText}>YES, I'M OKAY</Text>
           </Pressable>
           
-          <Text style={styles.infoNote}>
+          <Text style={[styles.infoNote, { color: colors.textTertiary }]}>
             Emergency contacts will be texted and emergency services will be called if you do not respond.
           </Text>
         </View>

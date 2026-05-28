@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.xl,
-    borderWidth: borderWidth.thin,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
     paddingVertical: spacing[4],
     marginTop: spacing[2],

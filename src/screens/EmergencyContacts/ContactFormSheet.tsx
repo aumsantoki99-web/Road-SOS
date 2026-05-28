@@ -29,6 +29,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
 import { CustomButton } from '../../components/common/CustomButton';
+import { CountrySelectionModal, COUNTRY_CODES, type CountryCodeOption } from '../../components/common/CountrySelectionModal';
 import { spacing, radius, borderWidth, layout } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import type { ContactFormValues } from '../../hooks/useContactForm';
@@ -95,6 +96,52 @@ export function ContactFormSheet({
 }: ContactFormSheetProps): React.JSX.Element {
   const { colors } = useTheme();
 
+  const [selectedCountry, setSelectedCountry] = React.useState<CountryCodeOption>(COUNTRY_CODES[0] || { code: '+91', flag: '🇮🇳', name: 'India' });
+  const [isCountryModalVisible, setIsCountryModalVisible] = React.useState(false);
+  const [localPhone, setLocalPhone] = React.useState('');
+
+  // Initial parse on mount or when form is populated (e.g. from Edit screen)
+  React.useEffect(() => {
+    const fullPhone = form.values.phone;
+    if (fullPhone) {
+      const found = COUNTRY_CODES.find(c => fullPhone.startsWith(c.code));
+      if (found) {
+        setSelectedCountry(found);
+        setLocalPhone(fullPhone.slice(found.code.length));
+      } else if (fullPhone.startsWith('+')) {
+        const digitsMatch = fullPhone.match(/^\+(\d{1,4})/);
+        if (digitsMatch) {
+          const code = `+${digitsMatch[1]}`;
+          setSelectedCountry({ code, flag: '🌐', name: 'Other' });
+          setLocalPhone(fullPhone.slice(code.length));
+        } else {
+          setLocalPhone(fullPhone);
+        }
+      } else {
+        setLocalPhone(fullPhone);
+      }
+    } else {
+      setLocalPhone('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateParentPhone = React.useCallback((country: CountryCodeOption, phoneVal: string) => {
+    const cleanedLocal = phoneVal.replace(/\D/g, '');
+    form.setField('phone', `${country.code}${cleanedLocal}`);
+  }, [form]);
+
+  const handlePhoneChange = (v: string) => {
+    const cleaned = v.replace(/\D/g, '').slice(0, 15);
+    setLocalPhone(cleaned);
+    updateParentPhone(selectedCountry, cleaned);
+  };
+
+  const handleCountrySelect = (country: CountryCodeOption) => {
+    setSelectedCountry(country);
+    updateParentPhone(country, localPhone);
+  };
+
   function getInputStyle(field: keyof ContactFormValues): object {
     const hasError = form.touched[field] && form.errors[field] !== undefined;
     return {
@@ -105,11 +152,12 @@ export function ContactFormSheet({
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={[styles.root, { backgroundColor: colors.bgSecondary }]}>
+    <>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={[styles.root, { backgroundColor: colors.bgSecondary }]}>
         {/* ── Header ──────────────────────────────────────────────────── */}
         <View style={[styles.header, { borderBottomColor: colors.divider }]}>
           <Text style={[textStyles.headingLarge, { color: colors.textPrimary }]}>
@@ -151,18 +199,24 @@ export function ContactFormSheet({
           <Field label="Mobile Number *" error={form.errors.phone} touched={form.touched.phone}>
             <View style={styles.phoneRow}>
               {/* Country code badge */}
-              <View style={[styles.countryCode, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
-                <Text style={[textStyles.bodyMedium, { color: colors.textSecondary }]}>🇮🇳 +91</Text>
-              </View>
+              <TouchableOpacity
+                style={[styles.countryCode, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}
+                onPress={() => setIsCountryModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={[textStyles.bodyMedium, { color: colors.textSecondary }]}>
+                  {selectedCountry.flag} {selectedCountry.code}
+                </Text>
+              </TouchableOpacity>
               <TextInput
                 style={[styles.input, styles.phoneInput, getInputStyle('phone')]}
                 placeholder="98765 43210"
                 placeholderTextColor={colors.textTertiary}
-                value={form.values.phone}
-                onChangeText={(v) => form.setField('phone', v.replace(/\D/g, '').slice(0, 10))}
+                value={localPhone}
+                onChangeText={handlePhoneChange}
                 onBlur={() => form.touchField('phone')}
                 keyboardType="phone-pad"
-                maxLength={10}
+                maxLength={15}
                 returnKeyType="next"
                 accessibilityLabel="Phone number"
               />
@@ -234,6 +288,7 @@ export function ContactFormSheet({
               Contact details are stored locally on your device and never shared without your permission.
             </Text>
           </View>
+          <View style={{ height: 80 }} />
         </ScrollView>
 
         {/* ── Footer ──────────────────────────────────────────────────── */}
@@ -263,6 +318,14 @@ export function ContactFormSheet({
         </View>
       </View>
     </KeyboardAvoidingView>
+
+      <CountrySelectionModal
+        visible={isCountryModalVisible}
+        onClose={() => setIsCountryModalVisible(false)}
+        onSelect={handleCountrySelect}
+        selectedCode={selectedCountry.code}
+      />
+    </>
   );
 }
 

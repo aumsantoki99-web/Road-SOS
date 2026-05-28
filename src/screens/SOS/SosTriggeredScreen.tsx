@@ -59,12 +59,14 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: '#09090C' }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
       {/* Red flashing ambient glow */}
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#D32F2F', opacity: flashAnim }]} />
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.emergency, opacity: flashAnim }]} />
       
       <LinearGradient
-        colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.95)']}
+        colors={colors.bgPrimary === '#000000' || colors.bgPrimary === '#09090C' 
+          ? ['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.95)'] 
+          : ['rgba(255,255,255,0.6)', 'rgba(255,255,255,0.95)']}
         style={StyleSheet.absoluteFill}
       />
 
@@ -73,34 +75,34 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
           <View style={[styles.alertIconBadge, { backgroundColor: colors.emergency }]}>
             <Ionicons name="megaphone" size={40} color="#FFFFFF" />
           </View>
-          <Text style={[textStyles.displayMedium, styles.title]}>
+          <Text style={[textStyles.displayMedium, styles.title, { color: colors.textPrimary }]}>
             SOS Dispatched
           </Text>
-          <View style={styles.dispatchBadge}>
-            <View style={styles.dispatchDot} />
-            <Text style={styles.dispatchBadgeText}>LIVE ALERT ACTIVE</Text>
+          <View style={[styles.dispatchBadge, { backgroundColor: `${colors.emergency}24`, borderColor: colors.surfaceBorder }]}>
+            <View style={[styles.dispatchDot, { backgroundColor: colors.emergency }]} />
+            <Text style={[styles.dispatchBadgeText, { color: colors.emergency }]}>LIVE ALERT ACTIVE</Text>
           </View>
-          <Text style={[textStyles.bodyLarge, styles.subtitle]}>
+          <Text style={[textStyles.bodyLarge, styles.subtitle, { color: colors.textSecondary }]}>
             Emergency alerts have been sent to your primary contacts and public safety.
           </Text>
         </View>
 
         {/* Message and Status Panel */}
-        <View style={[styles.statusCard, { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }]}>
+        <View style={[styles.statusCard, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
           <View style={styles.statusRow}>
             <Ionicons name="chatbox-ellipses" size={24} color={colors.emergency} />
-            <Text style={[textStyles.bodyMedium, styles.statusText, { color: '#FFFFFF' }]}>
+            <Text style={[textStyles.bodyMedium, styles.statusText, { color: colors.textPrimary }]}>
               {sosMessage ?? 'Dialer to 112 was opened and custom emergency SMS coordinates were sent successfully.'}
             </Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
           <View style={styles.coordRow}>
-            <Ionicons name="location" size={20} color="rgba(255,255,255,0.5)" />
+            <Ionicons name="location" size={20} color={colors.textTertiary} />
             <View style={styles.coordTexts}>
-              <Text style={styles.coordLabel}>DISPATCH GPS COORDINATES</Text>
-              <Text style={styles.coordValue}>
+              <Text style={[styles.coordLabel, { color: colors.textTertiary }]}>DISPATCH GPS COORDINATES</Text>
+              <Text style={[styles.coordValue, { color: colors.textPrimary }]}>
                 {lat.toFixed(6)}°, {lon.toFixed(6)}°
               </Text>
             </View>
@@ -112,16 +114,16 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
           <Pressable
             style={({ pressed }) => [
               styles.homeBtn,
-              { backgroundColor: '#FFFFFF', opacity: pressed ? 0.9 : 1.0 }
+              { backgroundColor: colors.textPrimary, opacity: pressed ? 0.9 : 1.0 }
             ]}
             onPress={onHome}
             accessibilityRole="button"
             accessibilityLabel="Return to home"
           >
-            <Ionicons name="home" size={20} color="#000000" style={{ marginRight: spacing[2] }} />
-            <Text style={styles.homeBtnText}>RETURN TO HOME</Text>
+            <Ionicons name="home" size={20} color={colors.bgPrimary} style={{ marginRight: spacing[2] }} />
+            <Text style={[styles.homeBtnText, { color: colors.bgPrimary }]}>RETURN TO HOME</Text>
           </Pressable>
-          <Text style={styles.footerNote}>
+          <Text style={[styles.footerNote, { color: colors.textTertiary }]}>
             Road-SOS continues monitoring in background. Ride safe.
           </Text>
         </View>

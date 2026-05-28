@@ -68,7 +68,7 @@ function validate(values: ContactFormValues): FieldErrors {
   if (!isNonEmpty(values.phone)) {
     errors.phone = 'Phone number is required';
   } else if (!isValidPhone(values.phone)) {
-    errors.phone = 'Enter a valid 10-digit mobile number';
+    errors.phone = 'Enter a valid mobile number (7 to 15 digits)';
   }
 
   if (!isNonEmpty(values.relationship)) {
