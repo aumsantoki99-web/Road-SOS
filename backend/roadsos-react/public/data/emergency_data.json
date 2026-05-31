@@ -1,0 +1,74 @@
+{
+  "places": [
+    {
+      "name": "Civil Hospital Ahmedabad",
+      "type": "trauma",
+      "lat": 23.0258,
+      "lng": 72.5873,
+      "phone": "079-22683721"
+    },
+    {
+      "name": "VS Hospital",
+      "type": "trauma",
+      "lat": 23.0399,
+      "lng": 72.5664,
+      "phone": "079-26577621"
+    },
+    {
+      "name": "LG Hospital",
+      "type": "trauma",
+      "lat": 23.0048,
+      "lng": 72.5854,
+      "phone": "079-25320732"
+    },
+    {
+      "name": "Sterling Hospital",
+      "type": "trauma",
+      "lat": 23.0469,
+      "lng": 72.5299,
+      "phone": "079-40011111"
+    },
+    {
+      "name": "Apollo Hospital Ahmedabad",
+      "type": "trauma",
+      "lat": 23.0469,
+      "lng": 72.5479,
+      "phone": "079-66701800"
+    },
+    {
+      "name": "Sardar Patel Police Station",
+      "type": "police",
+      "lat": 23.0225,
+      "lng": 72.5714,
+      "phone": "100"
+    },
+    {
+      "name": "Navrangpura Police Station",
+      "type": "police",
+      "lat": 23.0389,
+      "lng": 72.5560,
+      "phone": "100"
+    },
+    {
+      "name": "Satellite Police Station",
+      "type": "police",
+      "lat": 23.0178,
+      "lng": 72.5280,
+      "phone": "100"
+    },
+    {
+      "name": "Shahibaug Police Station",
+      "type": "police",
+      "lat": 23.0598,
+      "lng": 72.5825,
+      "phone": "100"
+    },
+    {
+      "name": "Ellis Bridge Police Station",
+      "type": "police",
+      "lat": 23.0310,
+      "lng": 72.5620,
+      "phone": "100"
+    }
+  ]
+}
