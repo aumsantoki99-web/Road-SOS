@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-unused-styles */
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -121,13 +122,6 @@ export function RideMonitoringScreen(): React.JSX.Element {
       </View>
     );
   };
-
-  const steps = [
-    { title: 'Ride\nStarted', icon: 'checkmark' },
-    { title: 'Monitoring\nActive', icon: 'shield-checkmark' },
-    { title: 'On the\nWay', icon: 'bicycle' },
-    { title: 'Near\nDestination', icon: 'home' }
-  ];
 
   return (
     <View style={styles.container}>

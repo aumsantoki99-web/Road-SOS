@@ -1,22 +1,20 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View, Animated, Easing, Alert } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { BackHandler, Pressable, StyleSheet, Text, View, Animated, Easing, Vibration } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { AlertController } from '../../services/alertController';
 import { SosService } from '../../services/sosService';
 import { useTheme } from '../../context/ThemeContext';
 import { textStyles } from '../../theme/typography';
-import { spacing, radius } from '../../theme/spacing';
+import { spacing } from '../../theme/spacing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppState } from '../../context/AppStateContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DeadManSwitch'>;
 
 export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Element {
   const { event } = route.params;
   const { colors } = useTheme();
-  const { state: appState } = useAppState();
   
   const INITIAL_SECONDS = 30; // Hardcoded to 30s for conscious check as requested
   const [seconds, setSeconds] = useState(INITIAL_SECONDS);
@@ -26,9 +24,21 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(1)).current;
 
+  const onExpire = useCallback(async () => {
+    if (handled) return;
+    setHandled(true);
+    await AlertController.stopAlert();
+    console.log('[DeadManSwitch] Timer expired! Dispatching emergency services...');
+    
+    const result = await SosService.triggerSOS(event, 'dead_man_switch_timeout');
+    
+    navigation.replace('SosTriggered', { event, sosMessage: result.message });
+  }, [handled, event, navigation]);
+
   useEffect(() => {
     // Start continuous audio alarm and repeated haptic pulses
     void AlertController.startAlert();
+    Vibration.vibrate([0, 1000, 500, 1000], true);
 
     // Prevent going back via hardware back button
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
@@ -54,6 +64,7 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
     return () => {
       backHandler.remove();
       void AlertController.stopAlert();
+      Vibration.cancel();
     };
   }, [pulseAnim]);
 
@@ -81,7 +92,7 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [seconds, handled, progressAnim]);
+  }, [seconds, handled, progressAnim, onExpire]);
 
   const onYesImFine = async () => {
     if (handled) return;
@@ -114,11 +125,9 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
     await AlertController.stopAlert();
     console.log('[DeadManSwitch] Timer expired! Dispatching emergency services...');
     
-    // Trigger the real emergency dialing and contact alert messages
-    await SosService.triggerSOS(event, 'dead_man_switch_timeout');
+    const result = await SosService.triggerSOS(event, 'dead_man_switch_timeout');
     
-    Alert.alert('SOS Dispatched', 'Emergency contacts have been notified and calls have been forwarded.');
-    navigation.goBack();
+    navigation.replace('SosTriggered', { event, sosMessage: result.message });
   };
 
   return (
@@ -163,7 +172,7 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
             onPress={onYesImFine}
           >
             <Ionicons name="checkmark-circle" size={26} color={colors.white} style={{ marginRight: spacing[2] }} />
-            <Text style={styles.yesBtnText}>YES, I'M OKAY</Text>
+            <Text style={styles.yesBtnText}>YES, I&apos;M OKAY</Text>
           </Pressable>
           
           <Text style={[styles.infoNote, { color: colors.textTertiary }]}>

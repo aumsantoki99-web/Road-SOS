@@ -20,7 +20,6 @@ import {
   Alert,
   TouchableOpacity,
   Animated,
-  Linking,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -234,7 +233,6 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
   const { updatePreferences } = useAppState();
   const { t, language, setLanguage } = useTranslation();
   const [isResetting, setResetting] = useState(false);
-  const [bloodGroup, setBloodGroup] = useState<string>('');
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
   const [isDelayModalVisible, setIsDelayModalVisible] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -250,18 +248,13 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
   }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
-    async function loadBloodGroup(): Promise<void> {
-      const result = await StorageService.get<MedicalProfile>(STORAGE_KEYS.MEDICAL_PROFILE);
-      if (result.success && result.data?.bloodGroup) {
-        setBloodGroup(result.data.bloodGroup);
-      } else {
-        setBloodGroup('');
-      }
+    async function checkMedicalProfile(): Promise<void> {
+      await StorageService.get<MedicalProfile>(STORAGE_KEYS.MEDICAL_PROFILE);
     }
-    void loadBloodGroup();
+    void checkMedicalProfile();
 
     const unsubscribe = navigation.addListener('focus', () => {
-      void loadBloodGroup();
+      void checkMedicalProfile();
     });
     return unsubscribe;
   }, [navigation]);

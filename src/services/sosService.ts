@@ -8,7 +8,7 @@ import { QueueService } from '../storage/QueueService';
 import { HospitalService } from './hospital.service';
 import { StorageService } from '../storage/StorageService';
 import { queueEmergencyEvent } from './emergencyQueue.service';
-import { requestJson } from './apiClient';
+
 import { getEmergencyNumbers } from '../utils/emergencyNumbers';
 
 export const EMERGENCY_NUMBER = '+91 9023134500';
@@ -31,7 +31,15 @@ function normalizePhone(raw: string): string {
   return phone;
 }
 
-function buildSOSMessage(latitude: number, longitude: number, hospital: any, police: any) {
+export interface EmergencyPlaceResult {
+  name?: string;
+  distance?: string | number;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+function buildSOSMessage(latitude: number, longitude: number, hospital: EmergencyPlaceResult | null, police: EmergencyPlaceResult | null) {
   const myLocationLink = `https://maps.google.com/?q=${latitude},${longitude}`;
 
   const hospitalText = hospital
@@ -59,7 +67,7 @@ function buildSOSMessage(latitude: number, longitude: number, hospital: any, pol
   );
 }
 
-function buildHospitalMessage(latitude: number, longitude: number, hospital: any, police: any) {
+function buildHospitalMessage(latitude: number, longitude: number, hospital: EmergencyPlaceResult | null, police: EmergencyPlaceResult | null) {
   return (
     `🚨 EMERGENCY ALERT — HOSPITAL REQUIRED 🚨\n\n` +
     `A road accident has occurred nearby. Patient may need immediate medical attention.\n\n` +
@@ -72,7 +80,7 @@ function buildHospitalMessage(latitude: number, longitude: number, hospital: any
   );
 }
 
-function buildPoliceMessage(latitude: number, longitude: number, hospital: any, police: any) {
+function buildPoliceMessage(latitude: number, longitude: number, hospital: EmergencyPlaceResult | null, police: EmergencyPlaceResult | null) {
   return (
     `🚨 EMERGENCY ALERT — POLICE ASSISTANCE REQUIRED 🚨\n\n` +
     `A road accident has occurred in your area. Immediate police assistance needed.\n\n` +
@@ -102,14 +110,7 @@ function buildOfflineSOSPayload(
   return `SOS|${lat}|${lng}|${category}|${name}|${age}|${bg}|${cond}|${phone}|${gender}`;
 }
 
-async function dialEmergency(): Promise<boolean> {
-  try {
-    return await Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
-  } catch (e) {
-    console.warn('[SosService] Dial emergency failed:', e);
-    return false;
-  }
-}
+
 
 export function stopBackgroundLocationUpdates() {
   if (locationUpdateInterval) {
@@ -196,7 +197,7 @@ async function sendSmsAlerts(event: CrashEvent, isTest = false): Promise<SosSend
   // Load offlineModeEnabled preference
   let offlineModeEnabled = true;
   try {
-    const prefRes = await StorageService.get<any>(STORAGE_KEYS.PREFERENCES);
+    const prefRes = await StorageService.get<Record<string, unknown>>(STORAGE_KEYS.PREFERENCES);
     if (prefRes.success && prefRes.data) {
       offlineModeEnabled = prefRes.data.offlineModeEnabled ?? true;
     }
@@ -350,7 +351,7 @@ export const SosService = {
     // Load offline mode preference
     let offlineModeEnabled = true;
     try {
-      const prefRes = await StorageService.get<any>(STORAGE_KEYS.PREFERENCES);
+      const prefRes = await StorageService.get<Record<string, unknown>>(STORAGE_KEYS.PREFERENCES);
       if (prefRes.success && prefRes.data) {
         offlineModeEnabled = prefRes.data.offlineModeEnabled ?? true;
       }
@@ -404,11 +405,16 @@ export const SosService = {
         callNumbers: callNumbers
       };
       
-      const response = await requestJson<{success: boolean, call_sid?: string}>(`${EMERGENCY_SERVER.DEFAULT_URL}/trigger-call`, {
+      const response = await fetch(`${EMERGENCY_SERVER.DEFAULT_URL}/trigger-call`, {
         method: 'POST',
-        body: payload
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-KEY': EMERGENCY_SERVER.API_KEY
+        },
+        body: JSON.stringify(payload),
       });
-      dispatchSuccess = !!response.success;
+      const data = await response.json();
+      dispatchSuccess = !!data.success;
       message = dispatchSuccess ? 'Dispatched successfully via background Llama AI.' : 'Backend returned failure.';
     } catch (e) {
       console.error('[SosService] Failed to reach background AI dispatcher:', e);

@@ -9,7 +9,7 @@
  * Creates a sense of the app "powering up" — makes users feel safe.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,

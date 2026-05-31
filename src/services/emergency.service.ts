@@ -90,11 +90,13 @@ export const EmergencyService = {
     let queuedId = 'mock-alert-id';
     let offlineModeEnabled = true;
     try {
-      const prefRes = await StorageService.get<any>('@ridesafe/user_preferences');
+      const prefRes = await StorageService.get<Record<string, unknown>>('@ridesafe/user_preferences');
       if (prefRes.success && prefRes.data) {
-        offlineModeEnabled = prefRes.data.offlineModeEnabled ?? true;
+        offlineModeEnabled = (prefRes.data.offlineModeEnabled as boolean) ?? true;
       }
-    } catch (e) {}
+    } catch {
+      // Ignore
+    }
 
     if (offlineModeEnabled) {
       const queued = await QueueService.enqueue('sos', payload as unknown as Record<string, unknown>);

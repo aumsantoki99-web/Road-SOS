@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View, Animated, Easing } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
@@ -22,6 +22,13 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
   const INITIAL_SECONDS = appState.preferences.sosDelay;
   const [seconds, setSeconds] = useState(INITIAL_SECONDS);
   const [handled, setHandled] = useState(false);
+
+  const onExpire = useCallback(async () => {
+    if (handled) return;
+    setHandled(true);
+    await AlertController.stopAlert();
+    navigation.replace('DeadManSwitch', { event });
+  }, [handled, event, navigation]);
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -82,7 +89,7 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [seconds, handled, progressAnim]);
+  }, [seconds, handled, progressAnim, INITIAL_SECONDS, onExpire]);
 
   const onImFine = async () => {
     if (handled) return;
@@ -90,13 +97,6 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
     await AlertController.stopAlert();
     console.log('[CrashCountdown] False positive resolved by user:', event);
     navigation.goBack();
-  };
-
-  const onExpire = async () => {
-    if (handled) return;
-    setHandled(true);
-    await AlertController.stopAlert();
-    navigation.replace('DeadManSwitch', { event });
   };
 
   return (

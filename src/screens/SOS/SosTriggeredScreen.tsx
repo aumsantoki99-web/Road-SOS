@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View, Animated, Easing } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
@@ -14,8 +14,8 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
   const { event, sosMessage } = route.params;
   const { colors } = useTheme();
 
-  const lat = event.latitude ?? (event as any).lat ?? 0;
-  const lon = event.longitude ?? (event as any).lon ?? 0;
+  const lat = event.latitude ?? (event as Record<string, unknown>).lat ?? 0;
+  const lon = event.longitude ?? (event as Record<string, unknown>).lon ?? 0;
 
   // Flashing animation for emergency background
   const flashAnim = useRef(new Animated.Value(0.2)).current;
@@ -48,15 +48,15 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
     return () => {
       backHandler.remove();
     };
-  }, [flashAnim]);
+  }, [flashAnim, onHome]);
 
-  const onHome = () => {
+  const onHome = useCallback(() => {
     try {
       navigation.popToTop();
     } catch {
       navigation.navigate('MainTabs');
     }
-  };
+  }, [navigation]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>

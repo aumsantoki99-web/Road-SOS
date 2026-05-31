@@ -43,6 +43,7 @@ export const EMERGENCY_SERVER = {
   DEFAULT_URL: 'https://rescuel-emergency-server.onrender.com',
   DEFAULT_VOICE_TARGET: '+919314050474',
   DEFAULT_HELPER_SMS: '+917359129704',
+  API_KEY: 'roadsos-default-secret-key-123',
 } as const;
 
 export const EMERGENCY_DATABASE_SERVER = 'https://road-sos-flax.vercel.app';

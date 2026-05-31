@@ -6,24 +6,28 @@ from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse, Gather
 from twilio.twiml.messaging_response import MessagingResponse
 
-# ─────────────────────────────────────────────────────────────────
-# CONFIG — Replace with your real keys
-# ─────────────────────────────────────────────────────────────────
-TWILIO_ACCOUNT_SID  = "AC5c341e82eea084fc37852a717a858532"
-TWILIO_AUTH_TOKEN   = "949c06cdb88a4db10127b15735328c7c"
-TWILIO_PHONE_NUMBER = "+14582306619"
-TARGET_PHONE_NUMBER = "+919314050474"   # AI Operator Voice Call Destination
-HELPER_PHONE_NUMBER = "+917359129704"   # Outbound SMS Notification Destination
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
-# Add as many Groq keys here as you want to bypass the 30 RPM limit
-GROQ_API_KEYS = [
-    "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",
-    "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",
-    "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",
-    "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",
-    "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",
-]
+# ─────────────────────────────────────────────────────────────────
+# CONFIG — Keys loaded securely from .env
+# ─────────────────────────────────────────────────────────────────
+TWILIO_ACCOUNT_SID  = os.environ.get("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN   = os.environ.get("TWILIO_AUTH_TOKEN", "")
+TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "")
+TARGET_PHONE_NUMBER = os.environ.get("TARGET_PHONE_NUMBER", "")   # AI Operator Voice Call Destination
+HELPER_PHONE_NUMBER = os.environ.get("HELPER_PHONE_NUMBER", "")   # Outbound SMS Notification Destination
+
+API_KEY_SECRET      = os.environ.get("X_API_KEY", "roadsos-default-secret-key-123")
+
+# Load Groq API Keys from env (comma separated) or fallback to defaults
+env_groq_keys = os.environ.get("GROQ_API_KEYS", "")
+if env_groq_keys:
+    GROQ_API_KEYS = [k.strip() for k in env_groq_keys.split(",") if k.strip()]
+else:
+    GROQ_API_KEYS = []
 groq_key_index = 0
 
 def get_next_groq_key():
@@ -254,6 +258,12 @@ def build_twiml_gather(say_text, lang_code, action_url):
 # ─────────────────────────────────────────────────────────────────
 @app.route('/trigger-call', methods=['POST'])
 def trigger_call():
+    # Security check: Validate X-API-KEY
+    req_api_key = request.headers.get("X-API-KEY")
+    if req_api_key != API_KEY_SECRET:
+        logging.warning("Unauthorized access attempt to /trigger-call")
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
     try:
         data        = request.json or {}
         lat         = data.get('lat', 0)

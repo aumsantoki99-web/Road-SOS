@@ -76,12 +76,10 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
 
         rideSession.startRide();
 
-        Alert.alert('SOS Dispatched', 'Emergency contacts have been notified and calls have been forwarded.');
-        nav.goBack();
+        nav.replace('SosTriggered', { event: manualEvent as any, sosMessage: result.message });
       } catch (error) {
         console.warn('[SOS] Failed to trigger manual alert:', error);
-        Alert.alert('Dispatch Failed', 'Could not send emergency alert.');
-        nav.goBack();
+        nav.replace('SosTriggered', { event: manualEvent as any, sosMessage: 'Could not send emergency alert.' });
       }
     })();
   }, [nav, rideSession]);
