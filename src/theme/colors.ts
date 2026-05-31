@@ -34,12 +34,12 @@ const primitive = {
   slate900: '#0F172A',
   slate950: '#080E1A',
 
-  // Amber (hero accent — rider energy, high-visibility safety)
-  amber300: '#FCD34D',
-  amber400: '#FBBF24',
-  amber500: '#F59E0B',
-  amber600: '#D97706',
-  amber700: '#B45309',
+  // Neon Green (hero accent — matches new Rescuel logo)
+  amber300: '#D9F99D',
+  amber400: '#81E42A', // Exact logo match
+  amber500: '#6CC222',
+  amber600: '#569C1B',
+  amber700: '#417514',
 
   // Crimson (emergency only — never use decoratively)
   crimson300: '#FCA5A5',

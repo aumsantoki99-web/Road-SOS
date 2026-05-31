@@ -27,6 +27,7 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from '../../components/common/MapViewCompat';
 
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { useLiveLocation } from '../../hooks/useLiveLocation';
 import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
@@ -37,7 +38,6 @@ import { HospitalService } from '../../services';
 import type { Hospital } from '../../types';
 import type { HospitalsScreenProps } from '../../navigation/types';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─── Live interactive Map component ──────────────────────────────────────────
 
@@ -46,13 +46,18 @@ function LiveMap({
   hospitals,
   selectedHospitalId,
   onHospitalSelect,
+  isFullscreen,
+  onToggleFullscreen,
 }: {
   userLocation: { latitude: number; longitude: number } | null;
   hospitals: Hospital[];
   selectedHospitalId?: string | null;
   onHospitalSelect?: (hospital: Hospital) => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }): React.JSX.Element {
   const { colors, isDark } = useTheme();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
 
   useEffect(() => {
@@ -61,7 +66,7 @@ function LiveMap({
         { latitude: userLocation.latitude, longitude: userLocation.longitude },
         ...hospitals
           .filter((h) => h.latitude && h.longitude)
-          .map((h) => ({ latitude: h.latitude!, longitude: h.longitude! })),
+          .map((h) => ({ latitude: h.latitude as number, longitude: h.longitude as number })),
       ];
       if (coords.length > 0) {
         setTimeout(() => {
@@ -97,12 +102,12 @@ function LiveMap({
   const defaultCenter = userLocation || { latitude: 23.0225, longitude: 72.5714 };
 
   return (
-    <View style={[styles.mapWrap, { backgroundColor: isDark ? '#0D1B2A' : '#E8F4FD' }]}>
+    <View style={[styles.mapWrap, isFullscreen && styles.mapWrapFullscreen, { backgroundColor: isDark ? '#0D1B2A' : '#E8F4FD' }]}>
       <MapView
         ref={mapRef}
         provider={PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFillObject}
-        customMapStyle={mapStyle}
+        mapType="standard"
         showsUserLocation={true}
         showsCompass={false}
         showsMyLocationButton={false}
@@ -114,19 +119,42 @@ function LiveMap({
         }}
       >
         {userLocation && (
-          <Circle
-            center={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
-            radius={5000} // 5km search radius
-            fillColor={isDark ? 'rgba(74, 140, 171, 0.08)' : 'rgba(14, 116, 144, 0.05)'}
-            strokeColor={colors.accent}
-            strokeWidth={1.5}
-          />
+          <>
+            <Circle
+              center={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
+              radius={5000} // 5km search radius
+              fillColor={isDark ? 'rgba(74, 140, 171, 0.08)' : 'rgba(14, 116, 144, 0.05)'}
+              strokeColor={colors.accent}
+              strokeWidth={1.5}
+            />
+            <Marker coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }} anchor={{ x: 0.5, y: 0.5 }} zIndex={999}>
+              <View style={styles.userMarkerWrap}>
+                <View style={[styles.userMarkerGlow, { backgroundColor: colors.accent + '40' }]} />
+                <View style={[styles.userMarkerCore, { backgroundColor: colors.accent }]} />
+              </View>
+            </Marker>
+          </>
         )}
 
         {hospitals.map((h) => {
           if (!h.latitude || !h.longitude) return null;
+          const sType = h.serviceType || 'hospital';
           const isEmergency = h.isEmergencyCenter;
-          const pinColor = isEmergency ? colors.emergency : '#F59E0B';
+          
+          let pinColor = isEmergency ? colors.emergency : '#F59E0B';
+          let iconName = "medical";
+          let desc = h.isEmergencyCenter ? '24/7 Emergency Wing' : 'Clinic / Hospital';
+          
+          if (sType === 'police') {
+            pinColor = '#3B82F6';
+            iconName = 'shield';
+            desc = 'Police Station';
+          } else if (sType === 'towing') {
+            pinColor = '#D97706';
+            iconName = 'car';
+            desc = 'Towing / Car Repair';
+          }
+          
           const isSelected = selectedHospitalId === h.id;
 
           return (
@@ -134,7 +162,8 @@ function LiveMap({
               key={h.id}
               coordinate={{ latitude: h.latitude, longitude: h.longitude }}
               title={h.name}
-              description={h.isEmergencyCenter ? '24/7 Emergency Wing' : 'Clinic / Hospital'}
+              description={desc}
+              onPress={() => onHospitalSelect && onHospitalSelect(h)}
               onCalloutPress={() => onHospitalSelect && onHospitalSelect(h)}
             >
               <View
@@ -145,10 +174,10 @@ function LiveMap({
                     borderColor: '#FFFFFF',
                     transform: [{ scale: isSelected ? 1.25 : 1 }],
                   },
-                  isEmergency ? shadows.glowEmergency : shadows.sm,
+                  isEmergency && sType === 'hospital' ? shadows.glowEmergency : shadows.sm,
                 ]}
               >
-                <Ionicons name="medical" size={14} color="#FFFFFF" />
+                <Ionicons name={iconName as any} size={14} color="#FFFFFF" />
               </View>
             </Marker>
           );
@@ -171,6 +200,36 @@ function LiveMap({
           Live Tracking Map · 5km Search Radius Active
         </Text>
       </View>
+
+      {/* Legend Box */}
+      <View style={[styles.legendBox, { backgroundColor: colors.surfacePrimary, borderColor: colors.surfaceBorder }]}>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendColor, { backgroundColor: colors.emergency }]} />
+          <Text style={[textStyles.caption, { color: colors.textPrimary }]}>24H Emergency</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendColor, { backgroundColor: '#F59E0B' }]} />
+          <Text style={[textStyles.caption, { color: colors.textPrimary }]}>Clinic / Hospital</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendColor, { backgroundColor: '#3B82F6' }]} />
+          <Text style={[textStyles.caption, { color: colors.textPrimary }]}>Police Station</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendColor, { backgroundColor: '#D97706' }]} />
+          <Text style={[textStyles.caption, { color: colors.textPrimary }]}>Towing</Text>
+        </View>
+      </View>
+
+      {/* Expand/Close Button */}
+      {onToggleFullscreen && (
+        <TouchableOpacity
+          style={[styles.expandBtn, { backgroundColor: colors.surfacePrimary }]}
+          onPress={onToggleFullscreen}
+        >
+          <Ionicons name={isFullscreen ? "close" : "expand"} size={20} color={colors.textPrimary} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -252,7 +311,16 @@ function HospitalListCard({
 }): React.JSX.Element {
   const { colors } = useTheme();
   const isEmergency = hospital.isEmergencyCenter;
-  const accentColor = isEmergency ? colors.emergency : colors.accent;
+  const sType = hospital.serviceType || 'hospital';
+  let accentColor = isEmergency ? colors.emergency : colors.accent;
+  let cardIconName = isEmergency ? 'medical' : 'business-outline';
+  if (sType === 'police') {
+    accentColor = '#3B82F6';
+    cardIconName = 'shield-outline';
+  } else if (sType === 'towing') {
+    accentColor = '#D97706';
+    cardIconName = 'car-outline';
+  }
 
   // Animated distance bar
   const barWidth = useRef(new Animated.Value(0)).current;
@@ -285,7 +353,7 @@ function HospitalListCard({
       ]}
     >
       <View style={[styles.listCardIcon, { backgroundColor: `${accentColor}15` }]}>
-        <Ionicons name={isEmergency ? 'medical' : 'business-outline'} size={20} color={accentColor} />
+        <Ionicons name={cardIconName as any} size={20} color={accentColor} />
       </View>
 
       <View style={styles.listCardBody}>
@@ -340,7 +408,8 @@ function HospitalListCard({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.Element {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const nav = useAppNavigation();
   const { location: liveLoc } = useLiveLocation(true);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
@@ -349,6 +418,8 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [isLiveData, setIsLiveData] = useState(false);
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'hospital' | 'police' | 'towing'>('all');
 
   // Fetch using best available location — real GPS or fallback
   const fetchHospitals = useCallback(async (lat: number, lon: number): Promise<void> => {
@@ -419,17 +490,32 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
     return a.distanceKm - b.distanceKm;
   });
 
-  const nearest = sorted[0];
-  const rest    = sorted.slice(1);
-  const maxDistance = Math.max(...sorted.map((h) => h.distanceKm), 1);
+  const filteredSorted = sorted.filter(h => filterType === 'all' || (h.serviceType || 'hospital') === filterType);
+  const nearest = filteredSorted[0];
+  const rest = filteredSorted.slice(1);
+  const maxDistance = Math.max(...filteredSorted.map((h) => h.distanceKm), 1);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
-      {/* Page header */}
+      {isMapFullscreen ? (
+        <LiveMap
+          userLocation={liveLoc}
+          hospitals={filteredSorted}
+          selectedHospitalId={selectedHospitalId}
+          onHospitalSelect={(hosp) => {
+            setSelectedHospitalId(hosp.id);
+            nav.navigate('HospitalDetail', { hospitalId: hosp.id });
+          }}
+          isFullscreen={true}
+          onToggleFullscreen={() => setIsMapFullscreen(false)}
+        />
+      ) : (
+        <>
+          {/* Page header */}
       <View style={styles.pageHeader}>
         <View>
           <Text style={[textStyles.displaySmall, { color: colors.textPrimary }]}>
-            Nearby Hospitals
+            {t('home.hospitals')}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: 2 }}>
             <Text style={[textStyles.caption, { color: colors.textTertiary }]}>
@@ -448,12 +534,6 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
               </View>
             )}
           </View>
-        </View>
-        <View style={[styles.locationChip, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
-          <Ionicons name="location" size={13} color={colors.accent} />
-          <Text style={[textStyles.caption, { color: colors.textSecondary, marginLeft: spacing[1] }]}>
-            {locationLabel}
-          </Text>
         </View>
       </View>
 
@@ -496,13 +576,31 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
             <>
               <LiveMap
                 userLocation={liveLoc}
-                hospitals={sorted}
+                hospitals={filteredSorted}
                 selectedHospitalId={selectedHospitalId}
                 onHospitalSelect={(hosp) => {
                   setSelectedHospitalId(hosp.id);
                   nav.navigate('HospitalDetail', { hospitalId: hosp.id });
                 }}
+                isFullscreen={false}
+                onToggleFullscreen={() => setIsMapFullscreen(true)}
               />
+
+              {/* Filter Pills */}
+              <View style={styles.filterRow}>
+                <TouchableOpacity onPress={() => setFilterType('all')} style={[styles.filterPill, filterType === 'all' && {backgroundColor: colors.textPrimary}]}>
+                  <Text style={[styles.filterText, filterType === 'all' && {color: colors.bgPrimary}]}>All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setFilterType('hospital')} style={[styles.filterPill, filterType === 'hospital' && {backgroundColor: colors.textPrimary}]}>
+                  <Text style={[styles.filterText, filterType === 'hospital' && {color: colors.bgPrimary}]}>Hospitals</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setFilterType('police')} style={[styles.filterPill, filterType === 'police' && {backgroundColor: colors.textPrimary}]}>
+                  <Text style={[styles.filterText, filterType === 'police' && {color: colors.bgPrimary}]}>Police</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setFilterType('towing')} style={[styles.filterPill, filterType === 'towing' && {backgroundColor: colors.textPrimary}]}>
+                  <Text style={[styles.filterText, filterType === 'towing' && {color: colors.bgPrimary}]}>Towing</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Nearest hero */}
               {nearest !== undefined && (
@@ -543,7 +641,20 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
               </Text>
             </View>
           }
+          ListEmptyComponent={
+            <View style={styles.loadingWrap}>
+              <Ionicons name="medical-outline" size={40} color={colors.textTertiary} />
+              <Text style={[textStyles.headingSmall, { color: colors.textPrimary, marginTop: spacing[3] }]}>
+                No hospitals found nearby
+              </Text>
+              <Text style={[textStyles.bodySmall, { color: colors.textTertiary, marginTop: spacing[2], textAlign: 'center' }]}>
+                Try refreshing location or increasing your movement radius.
+              </Text>
+            </View>
+          }
         />
+      )}
+        </>
       )}
     </SafeAreaView>
   );
@@ -609,6 +720,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  mapWrapFullscreen: {
+    flex: 1,
+    height: undefined,
+    borderRadius: 0,
+  },
+  expandBtn: {
+    position: 'absolute',
+    top: spacing[3],
+    right: spacing[3],
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   mapFade: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
@@ -625,7 +756,51 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[1],
     borderRadius: radius.sm,
   },
+  legendBox: {
+    position: 'absolute',
+    top: spacing[3],
+    left: spacing[3],
+    padding: spacing[2],
+    borderRadius: radius.md,
+    borderWidth: borderWidth.thin,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+    gap: 4,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  legendColor: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
 
+  // Filters
+  filterRow: {
+    flexDirection: 'row',
+    gap: spacing[2],
+    marginTop: spacing[4],
+    marginBottom: spacing[2]
+  },
+  filterPill: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1.5],
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC'
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B'
+  },
   // Hero card
   heroCard: {
     borderRadius: radius.xl,
@@ -719,5 +894,29 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  userMarkerWrap: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userMarkerGlow: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  userMarkerCore: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
 });

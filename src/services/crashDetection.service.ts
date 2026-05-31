@@ -28,7 +28,6 @@ const GYRO_IMPACT_THRESHOLD_RAD_S = 3.5;
 const SPEED_BEFORE_KMH = 20;
 const SPEED_AFTER_KMH = 5;
 const GPS_VALIDATION_MS = 3000;
-const GPS_SAMPLE_MS = 1000;
 const DEFAULT_LOCATION = { latitude: 23.0225, longitude: 72.5714 };
 
 let accelSub: SensorSubscription | null = null;
@@ -210,6 +209,10 @@ export const CrashDetectionService = {
     return thresholds[sensitivity];
   },
 
+  setSensitivity(sensitivity: 'low' | 'medium' | 'high'): void {
+    activeSensitivity = sensitivity;
+  },
+
   _checkImpact(now: number): void {
     if (impactCandidateTime !== null) return;
 
@@ -244,11 +247,10 @@ export const CrashDetectionService = {
           speedBeforeKmh: validation.before,
           speedAfterKmh: validation.after,
         });
-      } else {
-        // Reset peaks since this impact candidate failed validation
-        peakGForce = 0;
-        peakGyroRadS = 0;
       }
+      // Reset peaks after validation completes
+      peakGForce = 0;
+      peakGyroRadS = 0;
     }, GPS_VALIDATION_MS);
   },
 

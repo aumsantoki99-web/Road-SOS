@@ -16,12 +16,11 @@ import React, {
   type ReactNode,
 } from 'react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { QueueService } from '../storage/QueueService';
 import {
   startEmergencyQueueAutoSync,
   stopEmergencyQueueAutoSync,
-  syncPendingQueue,
 } from '../services/emergencyQueue.service';
+import { SyncService } from '../services/sync.service';
 import type { NetworkStatus } from '../types';
 
 interface NetworkContextValue {
@@ -52,9 +51,7 @@ export function NetworkProvider({ children }: { children: ReactNode }): React.JS
     }
     if (wasOffline.current && network.isConnected) {
       wasOffline.current = false;
-      // TODO (feature/placeholder-services): SyncService.flush()
-      void QueueService.flush();
-      void syncPendingQueue();
+      void SyncService.flushAllPendingWork();
     }
   }, [network.isConnected]);
 

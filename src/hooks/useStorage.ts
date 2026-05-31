@@ -37,7 +37,11 @@ export function useStorage<T>(
     setError(null);
     const result = await StorageService.get<T>(key);
     if (result.success) {
-      setData(result.data ?? defaultValue);
+      if (result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
+        setData({ ...defaultValue, ...result.data } as T);
+      } else {
+        setData(result.data ?? defaultValue);
+      }
     } else {
       setError(result.error);
     }

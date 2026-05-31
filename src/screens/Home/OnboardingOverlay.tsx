@@ -23,7 +23,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { StorageService } from '../../storage/StorageService';
 import { STORAGE_KEYS } from '../../constants';
-import { spacing, radius, borderWidth, layout } from '../../theme/spacing';
+import { spacing, radius, layout } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 

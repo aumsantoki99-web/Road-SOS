@@ -52,8 +52,9 @@ export function useRideSession(): RideSessionResult {
   const status: RideStatus = state.currentRide?.status ?? 'idle';
   const isActive = status === 'active';
 
-  // Real GPS location for speed
-  const { location: liveLocation } = useLiveLocation(isActive);
+  // Real GPS location for speed (keep tracking if auto-start is enabled)
+  const shouldTrackLocation = isActive || state.preferences.rideAutoStart;
+  const { location: liveLocation } = useLiveLocation(shouldTrackLocation);
 
   // Real crash detection state
   const [crashDetected, setCrashDetected] = useState(false);
@@ -64,36 +65,8 @@ export function useRideSession(): RideSessionResult {
   const distanceRef = useRef(0);
   const [distanceKm, setDistanceKm] = useState(0);
 
-  // Simulated speed state for realistic indoor testing
-  const [simulatedSpeed, setSimulatedSpeed] = useState(0);
-
   // ── Realistic Speed Simulation (runs while ride is active) ────────────────
-  useEffect(() => {
-    if (!isActive) {
-      setSimulatedSpeed(0);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setSimulatedSpeed((prev) => {
-        // Cruising speed target
-        const target = 48.5;
-        if (prev < target) {
-          // Accelerate smoothly
-          const accel = Math.random() * 4 + 2; // add 2-6 km/h
-          return Math.min(target, prev + accel);
-        } else {
-          // Slight realistic oscillation (+/- 1.5 km/h)
-          const oscillation = (Math.random() - 0.5) * 2.5; // range -1.25 to 1.25
-          const next = prev + oscillation;
-          // Keep it bounded nicely between 45 and 53
-          return Math.max(45, Math.min(53, next));
-        }
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isActive]);
+  // Removed. Now using actual GPS speed from liveLocation.
 
   // ── GPS distance accumulation (runs on each location update) ─────────────
   useEffect(() => {
@@ -142,7 +115,6 @@ export function useRideSession(): RideSessionResult {
     distanceRef.current = 0;
     lastLocationRef.current = null;
     setDistanceKm(0);
-    setSimulatedSpeed(0);
     setCrashDetected(false);
     setSensorState({ peakGForce: 0, peakGyroRadS: 0 });
 
@@ -179,22 +151,31 @@ export function useRideSession(): RideSessionResult {
       ...state.currentRide,
       status: 'ended',
       endTime: Date.now(),
+      crashDetected,
       distanceKm: distanceRef.current,
       avgSpeedKmh: distanceRef.current > 0 && timer.elapsedSeconds > 0
         ? (distanceRef.current / (timer.elapsedSeconds / 3600))
-        : (timer.elapsedSeconds > 0 ? 48.2 : 0),
+        : 0,
     };
     setCurrentRide(null);
     timer.reset();
     distanceRef.current = 0;
-    return ended;
-  }, [state.currentRide, setCurrentRide, timer]);
+    
+    // Save to local storage asynchronously
+    import('../storage/StorageService').then(({ StorageService }) => {
+      import('../constants').then(({ STORAGE_KEYS }) => {
+        StorageService.set(STORAGE_KEYS.LAST_RIDE, ended).catch(console.warn);
+      });
+    });
 
-  // Real GPS speed (km/h) or fall back to realistic simulated speed
+    return ended;
+  }, [state.currentRide, setCurrentRide, timer, crashDetected]);
+
+  // Real GPS speed (km/h)
   const realSpeed = isActive && liveLocation?.speed ? liveLocation.speed : 0;
-  const speedKmh = realSpeed > 5
-    ? Math.round(realSpeed * 10) / 10
-    : (isActive ? Math.round(simulatedSpeed * 10) / 10 : 0);
+  const speedKmh = Math.round(realSpeed * 10) / 10;
+
+  // Auto-start logic removed as user requested manual start.
 
   return {
     status,

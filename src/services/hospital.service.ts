@@ -6,6 +6,7 @@ import {
   getNearestCachedPlaces,
   syncEmergencyDatabaseIfNeeded,
 } from './emergencyDatabase.service';
+import { requestJson } from './apiClient';
 
 export interface UserLocation {
   latitude: number;
@@ -66,6 +67,10 @@ function buildQuery(location: UserLocation, radiusMeters: number): string {
   way["amenity"="clinic"](around:${radiusMeters},${location.latitude},${location.longitude});
   node["healthcare"="hospital"](around:${radiusMeters},${location.latitude},${location.longitude});
   way["healthcare"="hospital"](around:${radiusMeters},${location.latitude},${location.longitude});
+  node["amenity"="police"](around:${radiusMeters},${location.latitude},${location.longitude});
+  way["amenity"="police"](around:${radiusMeters},${location.latitude},${location.longitude});
+  node["shop"="car_repair"](around:${radiusMeters},${location.latitude},${location.longitude});
+  way["shop"="car_repair"](around:${radiusMeters},${location.latitude},${location.longitude});
 );
 out center tags;`;
 }
@@ -162,6 +167,13 @@ function parseHospital(element: OverpassElement, userLocation: UserLocation): Ho
   const rawPhone = tags.phone || tags['contact:phone'] || tags['contact:mobile'] || '';
   const phone = resolveActualPhone(name, rawPhone || element.id);
 
+  let serviceType: 'hospital' | 'police' | 'towing' = 'hospital';
+  if (tags.amenity === 'police') {
+    serviceType = 'police';
+  } else if (tags.shop === 'car_repair' || tags.towing === 'yes') {
+    serviceType = 'towing';
+  }
+
   return {
     id: `osm_${element.id}`,
     name,
@@ -170,12 +182,15 @@ function parseHospital(element: OverpassElement, userLocation: UserLocation): Ho
     distanceKm,
     etaMinutes,
     isEmergencyCenter:
-      tags.emergency === 'yes' ||
-      tags.amenity === 'hospital' ||
-      tags['healthcare:speciality']?.includes('emergency') === true,
+      serviceType === 'hospital' && (
+        tags.emergency === 'yes' ||
+        tags.amenity === 'hospital' ||
+        tags['healthcare:speciality']?.includes('emergency') === true
+      ),
     latitude,
     longitude,
     specialties,
+    serviceType,
   };
 }
 
@@ -197,7 +212,7 @@ async function queryOverpass(location: UserLocation, radiusMeters: number): Prom
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'User-Agent': 'ROADSoS/1.0',
         },
         signal: controller.signal,
@@ -291,20 +306,17 @@ out body center 1;`;
     for (const endpoint of OVERPASS_ENDPOINTS) {
       const url = `${endpoint}?data=${encodedQuery}`;
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-        const response = await fetch(url, {
+        const data = await requestJson<{ elements?: OverpassElement[] }>(url, {
           method: 'GET',
+          timeoutMs: 8000,
+          retries: 0,
           headers: {
-            'Accept': 'application/json',
             'User-Agent': 'ROADSoS/1.0',
           },
-          signal: controller.signal,
         });
-        clearTimeout(timeout);
-        const data = await response.json();
         if (data.elements && data.elements.length > 0) {
           const place = data.elements[0];
+          if (!place) continue;
           const placeLat = place.lat || place.center?.lat;
           const placeLon = place.lon || place.center?.lon;
           if (!placeLat || !placeLon) continue;

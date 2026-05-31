@@ -138,7 +138,7 @@ export function CustomButton({
             style={styles.iconLeft}
           />
         )}
-        <Text style={[textStyles.labelLarge, { color: getLabelColor() }]}>
+        <Text style={[textStyles.labelLarge, { color: getLabelColor(), textAlign: 'center' }]}>
           {label}
         </Text>
         {iconRight !== undefined && (

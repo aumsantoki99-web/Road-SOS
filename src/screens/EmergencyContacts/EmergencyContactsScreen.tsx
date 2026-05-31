@@ -33,7 +33,7 @@ import { useAppNavigation } from '../../navigation/useAppNavigation';
 
 import { SectionHeader } from '../../components/common/SectionHeader';
 import { EmptyState } from '../../components/common/EmptyState';
-import { LoadingOverlay } from '../../components/common/LoadingOverlay';
+import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { ContactCard } from '../../components/cards/ContactCard';
 import { CustomButton } from '../../components/common/CustomButton';
 
@@ -210,7 +210,13 @@ export function EmergencyContactsScreen(_props: ContactsScreenProps): React.JSX.
         />
       </Animated.View>
 
-      <LoadingOverlay visible={isLoading && contacts.length === 0} mode="inline" message={t('contacts.loading')} />
+      {isLoading && contacts.length === 0 && (
+        <View style={{ paddingHorizontal: layout.screenHorizontal, gap: spacing[3], marginTop: spacing[4] }}>
+          <SkeletonLoader showAvatar lines={2} />
+          <SkeletonLoader showAvatar lines={2} />
+          <SkeletonLoader showAvatar lines={2} />
+        </View>
+      )}
 
       {!isLoading && (
         <FlatList
@@ -245,6 +251,10 @@ export function EmergencyContactsScreen(_props: ContactsScreenProps): React.JSX.
                     onBlur={() => setSearchFocused(false)}
                     returnKeyType="search"
                     accessibilityLabel="Search emergency contacts"
+                    textContentType="none"
+                    autoComplete="off"
+                    autoCorrect={false}
+                    autoCapitalize="none"
                   />
                   {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

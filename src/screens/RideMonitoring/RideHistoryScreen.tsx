@@ -9,7 +9,7 @@
  *   StorageService.getRideHistory()
  */
 
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,8 @@ import { shadows } from '../../theme/shadows';
 import { formatDuration, formatDistance, formatDate, formatTime } from '../../utils';
 import { mockRideHistory } from '../../mock';
 import type { RideSession } from '../../types';
+import { STORAGE_KEYS } from '../../constants';
+import { StorageService } from '../../storage/StorageService';
 
 // ─── Ride history item ────────────────────────────────────────────────────────
 
@@ -106,6 +108,27 @@ function RideHistoryItem({ ride }: { ride: RideSession }): React.JSX.Element {
 export function RideHistoryScreen(): React.JSX.Element {
   const { colors } = useTheme();
   const nav = useAppNavigation();
+  const [rides, setRides] = useState<RideSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadRides = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    const result = await StorageService.get<RideSession[]>(STORAGE_KEYS.RIDE_HISTORY);
+    if (!result.success) {
+      setLoadError('Unable to load ride history from local storage.');
+      setRides(mockRideHistory);
+      setLoading(false);
+      return;
+    }
+    setRides(result.data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void loadRides();
+  }, [loadRides]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bgSecondary }]} edges={['top']}>
@@ -126,7 +149,7 @@ export function RideHistoryScreen(): React.JSX.Element {
 
       {/* List */}
       <FlatList
-        data={mockRideHistory}
+        data={rides}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
@@ -141,9 +164,17 @@ export function RideHistoryScreen(): React.JSX.Element {
         renderItem={({ item }) => <RideHistoryItem ride={item} />}
         ListHeaderComponent={
           <Text style={[textStyles.bodySmall, { color: colors.textTertiary, marginBottom: spacing[4] }]}>
-            {mockRideHistory.length} ride{mockRideHistory.length !== 1 ? 's' : ''} · mock data
+            {loading
+              ? 'Loading ride history...'
+              : loadError
+              ? `${rides.length} ride${rides.length !== 1 ? 's' : ''} · fallback data`
+              : `${rides.length} ride${rides.length !== 1 ? 's' : ''} · local history`}
           </Text>
         }
+        refreshing={loading}
+        onRefresh={() => {
+          void loadRides();
+        }}
       />
     </SafeAreaView>
   );

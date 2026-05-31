@@ -1,16 +1,17 @@
 import * as SMS from 'expo-sms';
 import { Platform, Linking } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, EMERGENCY_SERVER } from '../constants';
-import type { EmergencyContact, MedicalProfile, OfflineReason } from '../types';
+import type { EmergencyContact, MedicalProfile, OfflineReason, AuthProfile } from '../types';
 import type { CrashEvent } from './crashDetection.service';
 import { QueueService } from '../storage/QueueService';
 import { HospitalService } from './hospital.service';
 import { StorageService } from '../storage/StorageService';
 import { queueEmergencyEvent } from './emergencyQueue.service';
+import { requestJson } from './apiClient';
+import { getEmergencyNumbers } from '../utils/emergencyNumbers';
 
-export const EMERGENCY_NUMBER = '112';
+export const EMERGENCY_NUMBER = '+91 9023134500';
 
 export interface SosSendResult {
   contactsAttempted: number;
@@ -110,102 +111,11 @@ async function dialEmergency(): Promise<boolean> {
   }
 }
 
-// Periodic Background Location updater to sync operator with moving GPS
-function startBackgroundLocationUpdates(callSid: string, serverUrl: string) {
-  if (locationUpdateInterval) clearInterval(locationUpdateInterval);
-
-  console.log('[SosService] Initiated background location updates to voice server for SID:', callSid);
-
-  locationUpdateInterval = setInterval(async () => {
-    try {
-      const location = await HospitalService.getUserLocation();
-      const lat = location.latitude;
-      const lng = location.longitude;
-
-      if (lat !== null && lng !== null) {
-        const url = `${serverUrl}/update-location`;
-        await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Bypass-Tunnel-Reminder': 'true',
-          },
-          body: JSON.stringify({
-            call_sid: callSid,
-            lat,
-            lng,
-          }),
-        });
-        console.log(`[SosService] Pushed live coordinate update to server: ${lat}, ${lng}`);
-      }
-    } catch (err) {
-      console.warn('[SosService] Live coordinates update error:', err);
-    }
-  }, 20000); // 20s interval
-}
-
 export function stopBackgroundLocationUpdates() {
   if (locationUpdateInterval) {
     clearInterval(locationUpdateInterval);
     locationUpdateInterval = null;
     console.log('[SosService] Terminated background location updates.');
-  }
-}
-
-// Dispatches a POST to the Twilio emergency voice dispatch backend
-async function triggerVoiceDispatch(
-  lat: number,
-  lng: number,
-  category: string,
-  profile: MedicalProfile | null,
-  toPhone?: string
-): Promise<{ success: boolean; callSid?: string; error?: string }> {
-  const serverUrl = profile?.serverUrl || EMERGENCY_SERVER.DEFAULT_URL;
-  const url = `${serverUrl}/trigger-call`;
-
-  console.log('[SosService] Initiating Twilio Emergency voice call to server:', url);
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Bypass-Tunnel-Reminder': 'true',
-      },
-      body: JSON.stringify({
-        lat,
-        lng,
-        category,
-        name: profile?.name || 'Unknown',
-        age: profile?.age !== undefined ? String(profile.age) : 'Unknown',
-        bloodGroup: profile?.bloodGroup || 'Unknown',
-        conditions: profile?.conditions || 'None reported',
-        phone: profile?.phone || 'Unknown',
-        gender: profile?.gender || 'Unknown',
-        to_phone: toPhone || EMERGENCY_SERVER.DEFAULT_VOICE_TARGET,
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('[SosService] Voice server response successfully processed:', data);
-      return {
-        success: data.success ?? false,
-        callSid: data.call_sid,
-      };
-    } else {
-      console.warn('[SosService] Voice dispatch HTTP status failed:', response.status);
-      return {
-        success: false,
-        error: `Server responded with status ${response.status}`,
-      };
-    }
-  } catch (err: any) {
-    console.warn('[SosService] Voice dispatch fetch failed:', err);
-    return {
-      success: false,
-      error: err.message || String(err),
-    };
   }
 }
 
@@ -241,8 +151,8 @@ async function sendSmsAlerts(event: CrashEvent, isTest = false): Promise<SosSend
   // Step 3: Get contacts
   let contacts: EmergencyContact[] = [];
   try {
-    const rawContacts = await AsyncStorage.getItem(STORAGE_KEYS.CONTACTS);
-    contacts = rawContacts ? JSON.parse(rawContacts) : [];
+    const contactResult = await StorageService.get<EmergencyContact[]>(STORAGE_KEYS.CONTACTS);
+    contacts = contactResult.success && contactResult.data ? contactResult.data : [];
   } catch (e) {
     console.warn('[SosService] Failed to load contacts from storage, using fallbacks:', e);
   }
@@ -283,19 +193,29 @@ async function sendSmsAlerts(event: CrashEvent, isTest = false): Promise<SosSend
     };
   }
 
-  // Queue alerts offline
-  await QueueService.enqueue('sos', {
-    event,
-    phones: contactPhones,
-    body: contactSmsBody,
-    isTest,
-    timestamp: Date.now(),
-  } as unknown as Record<string, unknown>);
+  // Load offlineModeEnabled preference
+  let offlineModeEnabled = true;
+  try {
+    const prefRes = await StorageService.get<any>(STORAGE_KEYS.PREFERENCES);
+    if (prefRes.success && prefRes.data) {
+      offlineModeEnabled = prefRes.data.offlineModeEnabled ?? true;
+    }
+  } catch (e) {
+    console.warn('[SosService] Failed to fetch preferences for offline mode:', e);
+  }
+
+  // Queue alerts offline only if enabled
+  if (offlineModeEnabled) {
+    await QueueService.enqueue('sos', {
+      event,
+      phones: contactPhones,
+      body: contactSmsBody,
+      isTest,
+      timestamp: Date.now(),
+    } as unknown as Record<string, unknown>);
+  }
 
   let contactsSent = false;
-  let hospitalSent = false;
-  let policeSent = false;
-  let gatewaySent = false;
 
   try {
     const available = await SMS.isAvailableAsync();
@@ -305,23 +225,20 @@ async function sendSmsAlerts(event: CrashEvent, isTest = false): Promise<SosSend
       contactsSent = contactResult === 'sent';
 
       // Send to hospital if available
-      if (hospital && hospital.phone) {
+      if (hospital && typeof hospital.phone === 'string') {
         const hospitalPhone = normalizePhone(hospital.phone);
         await SMS.sendSMSAsync([hospitalPhone], hospitalSmsBody);
-        hospitalSent = true;
       }
 
       // Send to police if available
-      if (police && police.phone) {
+      if (police && typeof police.phone === 'string') {
         const policePhone = normalizePhone(police.phone);
         await SMS.sendSMSAsync([policePhone], policeSmsBody);
-        policeSent = true;
       }
 
       // Offline mode: also dispatch the structured payload to our Twilio gateway
       if (EMERGENCY_SERVER.DEFAULT_VOICE_TARGET) {
         await SMS.sendSMSAsync([EMERGENCY_SERVER.DEFAULT_VOICE_TARGET], offlineStructuredSmsBody);
-        gatewaySent = true;
       }
 
       if (contactsSent) {
@@ -393,28 +310,33 @@ async function sendSmsAlerts(event: CrashEvent, isTest = false): Promise<SosSend
   };
 }
 
+// Rate limiting configuration
+const SOS_RATE_LIMIT_MS = 60000; // 60 seconds
+let lastSosTimestamp = 0;
+
 export const SosService = {
   async triggerSOS(
     event: CrashEvent,
     escalationReason?: string,
   ): Promise<SosSendResult> {
+    const now = Date.now();
+    if (now - lastSosTimestamp < SOS_RATE_LIMIT_MS) {
+      console.warn('[SosService] SOS triggered too recently. Rate limiting active.');
+      return {
+        contactsAttempted: 0,
+        contactsReached: 0,
+        dialOpened: false,
+        message: 'SOS was triggered recently. Please wait a moment before trying again.',
+      };
+    }
+    lastSosTimestamp = now;
+
     // Stop any existing location update processes first
     stopBackgroundLocationUpdates();
 
-    // 1. Load User Profile details
-    let profile: MedicalProfile | null = null;
-    try {
-      const res = await StorageService.get<MedicalProfile>(STORAGE_KEYS.MEDICAL_PROFILE);
-      if (res.success && res.data) {
-        profile = res.data;
-      }
-    } catch (e) {
-      console.warn('[SosService] Failed to fetch Medical ID for dispatch:', e);
-    }
-
     // 2. Resolve coords
-    let lat = event.latitude ?? 22.3039;
-    let lng = event.longitude ?? 70.8022;
+    const lat = event.latitude ?? 22.3039;
+    const lng = event.longitude ?? 70.8022;
 
     // 2a. Write SOS into offline-first outbox for backend history sync.
     let offlineReason: OfflineReason = 'none';
@@ -424,43 +346,82 @@ export const SosService = {
     } catch {
       offlineReason = 'carrier_failure';
     }
-    await queueEmergencyEvent(lat, lng, 'trauma', offlineReason);
-
-    // Resolve nearest hospital phone number to dial
-    let hospital = null;
-    try {
-      hospital = await HospitalService.findNearestPlace(lat, lng, 'hospital');
-    } catch (err) {
-      console.warn('[SosService] Failed to find nearest hospital for voice call:', err);
-    }
-    const hospitalPhone = hospital?.phone ? normalizePhone(hospital.phone) : undefined;
-
-    // 3. Initiate Online Voice Assistant Dispatch
-    let dispatchText = 'Dialer to 112 was opened and custom emergency SMS coordinates were sent successfully.';
-    let voiceTriggerSuccess = false;
-
-    const voiceCallResult = await triggerVoiceDispatch(lat, lng, 'Emergency Impact', profile, hospitalPhone);
-    if (voiceCallResult.success && voiceCallResult.callSid) {
-      voiceTriggerSuccess = true;
-      dispatchText = `🚨 AI VOICE DISPATCH ACTIVE 🚨\nAn outbound AI voice dispatch call (SID: ${voiceCallResult.callSid.slice(0, 8)}...) has been placed to emergency services.\n\nThe AI Operator is actively speaking with the responder in their native language to report your status.`;
-      
-      // Start background coordinates updates
-      const serverUrl = profile?.serverUrl || EMERGENCY_SERVER.DEFAULT_URL;
-      startBackgroundLocationUpdates(voiceCallResult.callSid, serverUrl);
-    } else {
-      console.log('[SosService] Voice call API failed, resorting to standard dial & SMS. Error:', voiceCallResult.error);
-    }
-
-    // 4. Dial emergency line & dispatch SMS
-    const dialOpened = await dialEmergency();
-    const sms = await sendSmsAlerts(event);
     
-    console.log('[SosService] SOS triggered outcome:', { escalationReason, dialOpened, sms, voiceTriggerSuccess });
+    // Load offline mode preference
+    let offlineModeEnabled = true;
+    try {
+      const prefRes = await StorageService.get<any>(STORAGE_KEYS.PREFERENCES);
+      if (prefRes.success && prefRes.data) {
+        offlineModeEnabled = prefRes.data.offlineModeEnabled ?? true;
+      }
+    } catch (e) {
+      console.warn('[SosService] Failed to fetch preferences for offline mode:', e);
+    }
+
+    if (offlineModeEnabled) {
+      await queueEmergencyEvent(lat, lng, 'trauma', offlineReason);
+    }
+
+    // Load Emergency Contacts
+    let contacts: EmergencyContact[] = [];
+    try {
+      const contactResult = await StorageService.get<EmergencyContact[]>(STORAGE_KEYS.CONTACTS);
+      contacts = contactResult.success && contactResult.data ? contactResult.data : [];
+    } catch (e) {
+      console.warn('[SosService] Failed to load contacts from storage, using fallbacks:', e);
+    }
+    const contactPhones = contacts.map((c) => normalizePhone(c.phone)).filter(Boolean);
+    const primaryContact = contacts.find(c => c.isPrimary);
+    const primaryContactPhone = primaryContact ? normalizePhone(primaryContact.phone) : null;
+
+    // Load User Profile to get localized emergency numbers
+    let countryCode: string | undefined;
+    try {
+      const authResult = await StorageService.get<AuthProfile>(STORAGE_KEYS.AUTH_PROFILE);
+      if (authResult.success && authResult.data) {
+        countryCode = authResult.data.countryCode;
+      }
+    } catch (e) {
+      console.warn('[SosService] Failed to load AuthProfile for countryCode:', e);
+    }
+    
+    const emergencyNumbers = getEmergencyNumbers(countryCode);
+
+    // 4. Dispatch purely via background API without any user interaction
+    let dispatchSuccess = false;
+    let message = 'Backend dispatch skipped or failed.';
+    try {
+      const callNumbers = [emergencyNumbers.ambulance];
+      if (primaryContactPhone) {
+        callNumbers.push(primaryContactPhone);
+      }
+
+      const payload = {
+        lat,
+        lng,
+        category: escalationReason || 'Automated SOS',
+        smsContacts: [...contactPhones, emergencyNumbers.police, emergencyNumbers.ambulance],
+        callNumbers: callNumbers
+      };
+      
+      const response = await requestJson<{success: boolean, call_sid?: string}>(`${EMERGENCY_SERVER.DEFAULT_URL}/trigger-call`, {
+        method: 'POST',
+        body: payload
+      });
+      dispatchSuccess = !!response.success;
+      message = dispatchSuccess ? 'Dispatched successfully via background Llama AI.' : 'Backend returned failure.';
+    } catch (e) {
+      console.error('[SosService] Failed to reach background AI dispatcher:', e);
+      message = 'Failed to reach emergency backend server.';
+    }
+    
+    console.log('[SosService] SOS triggered outcome:', { escalationReason, dispatchSuccess, message });
     
     return { 
-      ...sms, 
-      dialOpened,
-      message: voiceTriggerSuccess ? dispatchText : sms.message,
+      contactsAttempted: contactPhones.length,
+      contactsReached: dispatchSuccess ? contactPhones.length : 0, 
+      dialOpened: dispatchSuccess,
+      message,
     };
   },
 

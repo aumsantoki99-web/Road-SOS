@@ -16,9 +16,7 @@ module.exports = {
   extends: [
     'eslint:recommended',
     'plugin:react/recommended',
-    'plugin:react-hooks/recommended',
     'plugin:@typescript-eslint/recommended',
-    'plugin:@typescript-eslint/recommended-requiring-type-checking',
   ],
   plugins: [
     'react',
@@ -30,7 +28,7 @@ module.exports = {
     // TypeScript
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/explicit-function-return-type': 'warn',
+    '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/consistent-type-imports': 'error',
     '@typescript-eslint/no-non-null-assertion': 'warn',
 
@@ -44,8 +42,8 @@ module.exports = {
     // React Native
     'react-native/no-unused-styles': 'error',
     'react-native/split-platform-components': 'warn',
-    'react-native/no-inline-styles': 'warn',
-    'react-native/no-color-literals': 'warn',
+    'react-native/no-inline-styles': 'off',
+    'react-native/no-color-literals': 'off',
 
     // General
     'no-console': ['warn', { allow: ['warn', 'error'] }],

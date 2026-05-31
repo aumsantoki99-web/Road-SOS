@@ -1,59 +1,47 @@
 /**
  * SOSConfirmationScreen — Premium Emergency Overlay
- * feature/ui-polish-home ✅
- *
- * Presented as transparentModal — background stays visible.
- * Redesigned for emotional clarity under stress:
-/**
- * SOSConfirmationScreen — Premium Emergency Overlay
- * feature/ui-polish-home ✅
- *
- * Presented as transparentModal — background stays visible.
- * Redesigned for emotional clarity under stress:
- *   - Large, unmistakeable countdown ring
- *   - Contacts shown with avatars — feel personal not abstract
- *   - Cancel button is prominent and reassuring, not hidden
- *   - Gradient emergency header creates immediate urgency recognition
+ * Redesigned to match DeadManSwitch (trip) UI but for manual SOS.
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   Animated,
   Alert,
+  Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
 import { useTheme } from '../../context/ThemeContext';
-import { useTranslation } from '../../context/LocalizationContext';
+import { useAppState } from '../../context/AppStateContext';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { useSOSCountdown } from '../../hooks/useSOSCountdown';
 import { useRideSession } from '../../hooks/useRideSession';
-import { spacing, radius, layout, borderWidth } from '../../theme/spacing';
+import { spacing, radius } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
-import { shadows } from '../../theme/shadows';
-import { mockContacts } from '../../mock';
 import type { RootScreenNavigationProp } from '../../navigation/types';
 import { NotificationService, SosService } from '../../services';
-const SOS_SECONDS = 10;
+import { AlertController } from '../../services/alertController';
 
 type Props = { navigation: RootScreenNavigationProp<'SOSConfirmation'> };
 
 export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { state: appState } = useAppState();
   const nav = useAppNavigation();
   const hasSentRef = useRef(false);
   const rideSession = useRideSession();
 
+  // Handle automatic dispatch
   const handleComplete = useCallback((): void => {
     if (hasSentRef.current) return;
     hasSentRef.current = true;
+    
+    void AlertController.stopAlert();
 
     void (async () => {
       let lat: number | null = null;
@@ -83,293 +71,242 @@ export function SOSConfirmationScreen(_props: Props): React.JSX.Element {
       };
 
       try {
-        // Trigger premium RoadGuard dispatching service
         const result = await SosService.triggerSOS(manualEvent, 'manual_sos_button');
         await NotificationService.notifySOSSent(result.contactsReached);
 
-        // Start ride session automatically!
         rideSession.startRide();
 
-        // Replace view with dispatched details HUD
-        nav.replace('SosTriggered', {
-          event: manualEvent,
-          sosMessage: result.message,
-        });
+        Alert.alert('SOS Dispatched', 'Emergency contacts have been notified and calls have been forwarded.');
+        nav.goBack();
       } catch (error) {
         console.warn('[SOS] Failed to trigger manual alert:', error);
-        Alert.alert(t('sos.failed'), t('sos.failedBody'));
+        Alert.alert('Dispatch Failed', 'Could not send emergency alert.');
         nav.goBack();
       }
     })();
   }, [nav, rideSession]);
 
-  const handleCancel = useCallback((): void => nav.goBack(), [nav]);
+  const handleCancel = useCallback((): void => {
+    void AlertController.stopAlert();
+    nav.goBack();
+  }, [nav]);
 
   const { count, cancel, progress } = useSOSCountdown({
-    seconds: SOS_SECONDS,
+    seconds: appState.preferences.sosDelay,
     onComplete: handleComplete,
     onCancel: handleCancel,
   });
 
-  // Edge glow animation
-  const edgeGlowOpacity = useRef(new Animated.Value(0)).current;
+  // Pulse animation for the glowing ring
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Haptic + edge glow on every tick
   useEffect(() => {
-    if (count <= 0 || count >= SOS_SECONDS) return;
-
-    // Edge glow pulse
-    Animated.sequence([
-      Animated.timing(edgeGlowOpacity, { toValue: 0.8, duration: 120, useNativeDriver: true }),
-      Animated.timing(edgeGlowOpacity, { toValue: 0,   duration: 500, useNativeDriver: true }),
-    ]).start();
-  }, [count, edgeGlowOpacity]);
-
-  const AVATAR_COLORS = ['#7C3AED','#0D9488','#DC2626','#D97706','#2563EB','#059669'];
+    // Start siren and haptics
+    void AlertController.startAlert();
+    
+    // Pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.25,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+    
+    return () => {
+      void AlertController.stopAlert();
+    };
+  }, [pulseAnim]);
 
   return (
-    <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
-      {/* Top edge glow — pulses red on each countdown tick */}
-      <Animated.View
-        style={[
-          styles.edgeGlow,
-          { backgroundColor: colors.emergency, opacity: edgeGlowOpacity },
-        ]}
-        pointerEvents="none"
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
+      <LinearGradient
+        colors={['rgba(220, 38, 38, 0.15)', 'transparent']}
+        style={styles.headerGradient}
       />
-      <View style={[styles.sheet, { backgroundColor: colors.bgSecondary, borderColor: colors.emergencyBorder }, shadows.float]}>
 
-        {/* ── Emergency header ───────────────────────────────────────── */}
-        <LinearGradient
-          colors={[colors.emergencySubtle, 'transparent']}
-          style={styles.headerGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          pointerEvents="none"
-        />
-        <View style={styles.header}>
-          <View style={[styles.warningIcon, { backgroundColor: colors.emergency }]}>
-            <Ionicons name="warning" size={20} color="#FFFFFF" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[textStyles.headingLarge, { color: colors.emergency }]}>{t('sos.title')}</Text>
-            <Text style={[textStyles.bodySmall, { color: colors.textSecondary, marginTop: 2 }]}>
-              {t('sos.subtitle')}
-            </Text>
-          </View>
-          <View style={[styles.liveBadge, { backgroundColor: colors.emergencySubtle, borderColor: colors.emergencyBorder }]}>
-            <View style={[styles.liveDot, { backgroundColor: colors.emergency }]} />
-            <Text style={[textStyles.labelCaps, { color: colors.emergencyText }]}>LIVE</Text>
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
+          <Animated.View style={[styles.glowRing, { transform: [{ scale: pulseAnim }], borderColor: colors.emergency }]} />
+          <View style={[styles.warningBadge, { backgroundColor: colors.emergency }]}>
+            <Ionicons name="warning" size={36} color={colors.white} />
           </View>
         </View>
 
-        {/* ── Countdown ring ─────────────────────────────────────────── */}
-        <View style={styles.countdownWrap}>
-          {/* Background ring */}
-          <View style={[styles.ringBg, { borderColor: colors.surfaceBorder }]} />
-          {/* Filled ring — fades with progress */}
-          <Animated.View style={[styles.ringFill, { borderColor: colors.emergency, opacity: progress }]} />
-          {/* Centre */}
-          <View style={[styles.ringInner, { overflow: 'hidden' }]}>
-            <LinearGradient
-              colors={[colors.emergency, '#B91C1C']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0.2, y: 0 }}
-              end={{ x: 0.8, y: 1 }}
-            />
-            <Text style={styles.countNumber}>{count}</Text>
-            <Text style={styles.countLabel}>SEC</Text>
-          </View>
-        </View>
-
-        {/* ── Contacts being alerted ─────────────────────────────────── */}
-        <View style={[styles.contactsBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
-          <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginBottom: spacing[3] }]}>
-            {t('sos.alerting')}
-          </Text>
-          {mockContacts.length === 0 ? (
-            <Text style={[textStyles.bodySmall, { color: colors.textTertiary }]}>
-              {t('sos.noContacts')}
-            </Text>
-          ) : (
-            <View style={styles.contactList}>
-              {mockContacts.map((contact) => {
-                const avatarColor = AVATAR_COLORS[(contact.name.charCodeAt(0) ?? 0) % AVATAR_COLORS.length] ?? '#7C3AED';
-                const initial = contact.name.charAt(0).toUpperCase();
-                return (
-                  <View key={contact.id} style={styles.contactRow}>
-                    <View style={[styles.contactAvatar, { backgroundColor: avatarColor }]}>
-                      <Text style={[textStyles.labelMedium, { color: '#FFF' }]}>{initial}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[textStyles.bodySmall, { color: colors.textPrimary, fontWeight: '600' }]}>
-                        {contact.name}
-                      </Text>
-                      <Text style={[textStyles.caption, { color: colors.textTertiary }]}>
-                        {contact.relationship}
-                      </Text>
-                    </View>
-                    {contact.isPrimary && (
-                      <View style={[styles.primaryDot, { backgroundColor: colors.accentSubtle }]}>
-                        <Ionicons name="star" size={10} color={colors.accent} />
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        {/* ── Location note ──────────────────────────────────────────── */}
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={13} color={colors.textTertiary} />
-          <Text style={[textStyles.caption, { color: colors.textTertiary, marginLeft: spacing[1] }]}>
-            {t('sos.locationNote')}
-          </Text>
-        </View>
-
-        {/* ── Cancel ─────────────────────────────────────────────────── */}
-        <TouchableOpacity
-          onPress={cancel}
-          style={[styles.cancelBtn, { backgroundColor: colors.surfacePrimary, borderColor: colors.surfaceBorder }]}
-          accessibilityLabel="Cancel SOS alert"
-          accessibilityRole="button"
-        >
-          <Ionicons name="close-circle-outline" size={20} color={colors.textSecondary} />
-          <Text style={[textStyles.labelLarge, { color: colors.textPrimary, marginLeft: spacing[2] }]}>
-            {t('sos.cancelBtn')}
-          </Text>
-        </TouchableOpacity>
-
-        <Text style={[textStyles.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing[3] }]}>
-          {t('sos.autoSendNote')}
+        <Text style={[textStyles.displayMedium, styles.heading, { color: colors.textPrimary }]}>
+          Manual SOS
         </Text>
+        
+        <Text style={[textStyles.bodyLarge, styles.subheading, { color: colors.textSecondary }]}>
+          An emergency SOS dispatch will launch automatically in:
+        </Text>
+
+        {/* Custom Premium Countdown Progress Ring */}
+        <View style={styles.countdownContainer}>
+          <View style={[styles.ringTrack, { borderColor: colors.surfaceBorder }]} />
+          <Animated.View style={[styles.ringProgress, { borderColor: colors.emergency, opacity: progress }]} />
+          <View style={[styles.ringInner, { backgroundColor: colors.surfaceSecondary }]}>
+            <Text style={[styles.counterText, { color: colors.textPrimary }]}>{count}</Text>
+            <Text style={[styles.secLabel, { color: colors.textTertiary }]}>SECONDS</Text>
+          </View>
+        </View>
+
+        <View style={styles.bottomSection}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.cancelBtn,
+              { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder, opacity: pressed ? 0.9 : 1.0 }
+            ]}
+            onPress={cancel}
+          >
+            <Ionicons name="close-circle" size={26} color={colors.emergency} style={{ marginRight: spacing[2] }} />
+            <Text style={[styles.cancelBtnText, { color: colors.emergency }]}>CANCEL SOS</Text>
+          </Pressable>
+          
+          <Text style={[styles.infoNote, { color: colors.textTertiary }]}>
+            Emergency contacts will be texted and emergency services will be called automatically if not cancelled.
+          </Text>
+        </View>
       </View>
     </View>
   );
 }
 
-const RING_SIZE  = 136;
-const INNER_SIZE = 104;
-
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: layout.screenHorizontal,
-    paddingBottom: spacing[8],
+    padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  edgeGlow: {
+  headerGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 4,
-    zIndex: 999,
+    height: 300,
   },
-  sheet: {
-    borderRadius: radius['2xl'],
-    padding: spacing[6],
+  content: {
+    flex: 1,
+    width: '100%',
     alignItems: 'center',
-    borderWidth: borderWidth.medium,
-    overflow: 'hidden',
-    position: 'relative',
+    justifyContent: 'space-between',
+    paddingTop: 80,
+    paddingBottom: 40,
   },
-  headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 80 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    gap: spacing[3],
-    marginBottom: spacing[5],
-  },
-  warningIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.lg,
-    alignItems: 'center',
+  iconContainer: {
+    width: 100,
+    height: 100,
     justifyContent: 'center',
-  },
-  liveBadge: {
-    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.full,
-    borderWidth: borderWidth.thin,
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[1],
-    gap: spacing[1],
+    marginBottom: spacing[2],
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: radius.full,
-  },
-  countdownWrap: {
-    width: RING_SIZE,
-    height: RING_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing[5],
-  },
-  ringBg: {
+  glowRing: {
     position: 'absolute',
-    width: RING_SIZE,
-    height: RING_SIZE,
-    borderRadius: RING_SIZE / 2,
-    borderWidth: 3,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 2,
+    opacity: 0.4,
   },
-  ringFill: {
-    position: 'absolute',
-    width: RING_SIZE,
-    height: RING_SIZE,
-    borderRadius: RING_SIZE / 2,
-    borderWidth: 3,
-  },
-  ringInner: {
-    width: INNER_SIZE,
-    height: INNER_SIZE,
-    borderRadius: INNER_SIZE / 2,
-    alignItems: 'center',
+  warningBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  countNumber: { color: '#FFF', fontSize: 46, fontWeight: '900', lineHeight: 50 },
-  countLabel:  { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700', letterSpacing: 2 },
-
-  contactsBox: {
-    alignSelf: 'stretch',
-    borderRadius: radius.xl,
-    borderWidth: borderWidth.thin,
-    padding: spacing[4],
+  heading: {
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: spacing[1],
+  },
+  subheading: {
+    textAlign: 'center',
+    paddingHorizontal: 12,
+    lineHeight: 22,
     marginBottom: spacing[4],
   },
-  contactList: { gap: spacing[3] },
-  contactRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  contactAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.full,
-    alignItems: 'center',
+  countdownContainer: {
+    width: 180,
+    height: 180,
     justifyContent: 'center',
-    flexShrink: 0,
-  },
-  primaryDot: {
-    width: 24,
-    height: 24,
-    borderRadius: radius.full,
     alignItems: 'center',
-    justifyContent: 'center',
+    position: 'relative',
+    marginVertical: spacing[4],
   },
-
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing[5] },
-
+  ringTrack: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 6,
+  },
+  ringProgress: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 6,
+  },
+  ringInner: {
+    width: 154,
+    height: 154,
+    borderRadius: 77,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  counterText: {
+    fontSize: 64,
+    fontWeight: '900',
+    lineHeight: 70,
+  },
+  secLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginTop: 4,
+  },
+  bottomSection: {
+    width: '100%',
+    alignItems: 'center',
+    gap: spacing[4],
+  },
   cancelBtn: {
-    alignSelf: 'stretch',
-    height: layout.minTouchTarget + 10,
+    width: '100%',
+    height: 64,
     borderRadius: radius.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: borderWidth.thin,
+    borderWidth: 1.5,
+  },
+  cancelBtnText: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  infoNote: {
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+    lineHeight: 16,
   },
 });

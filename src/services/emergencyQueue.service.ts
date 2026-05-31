@@ -1,8 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { type NetInfoSubscription } from '@react-native-community/netinfo';
 
 import { EMERGENCY_DATABASE_SERVER, STORAGE_KEYS } from '../constants';
 import type { OfflineReason, PendingEmergencyEvent } from '../types';
+import { StorageService } from '../storage/StorageService';
+import { requestJson } from './apiClient';
 
 interface LogEmergencyResponse {
   success?: boolean;
@@ -19,18 +20,16 @@ function generateUUID(): string {
 }
 
 async function getQueue(): Promise<PendingEmergencyEvent[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_EMERGENCY_EVENTS);
-    if (!raw) return [];
-    return JSON.parse(raw) as PendingEmergencyEvent[];
-  } catch (error) {
-    console.warn('[EmergencyQueueService] Failed to parse pending events queue:', error);
+  const result = await StorageService.get<PendingEmergencyEvent[]>(STORAGE_KEYS.PENDING_EMERGENCY_EVENTS);
+  if (!result.success) {
+    console.warn('[EmergencyQueueService] Failed to load pending events queue:', result.error);
     return [];
   }
+  return result.data ?? [];
 }
 
 async function setQueue(queue: PendingEmergencyEvent[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.PENDING_EMERGENCY_EVENTS, JSON.stringify(queue));
+  await StorageService.set(STORAGE_KEYS.PENDING_EMERGENCY_EVENTS, queue);
 }
 
 export async function queueEmergencyEvent(
@@ -74,17 +73,14 @@ export async function syncPendingQueue(): Promise<{ synced: number; failed: numb
 
     for (const event of queue) {
       try {
-        const response = await fetch(`${EMERGENCY_DATABASE_SERVER}/log-emergency-event`, {
+        const result = await requestJson<LogEmergencyResponse>(`${EMERGENCY_DATABASE_SERVER}/log-emergency-event`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(event),
+          headers: {
+            'X-Idempotency-Key': event.eventId,
+            'Bypass-Tunnel-Reminder': 'true',
+          },
+          body: event,
         });
-        if (!response.ok) {
-          failedToSync.push(event);
-          continue;
-        }
-
-        const result = (await response.json()) as LogEmergencyResponse;
         if (result.success) {
           synced += 1;
         } else {

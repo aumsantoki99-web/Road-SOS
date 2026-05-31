@@ -204,7 +204,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scroll: {
-    flex: 1,
+    flexShrink: 1,
+    width: '100%',
   },
   scrollContent: {
     paddingHorizontal: spacing[5],

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,12 +9,15 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from 'react-native';
 
 import { STORAGE_KEYS } from '../../constants';
 import { useTheme } from '../../context/ThemeContext';
 import { StorageService } from '../../storage/StorageService';
 import type { AuthProfile } from '../../types';
+import { firebaseAuth } from '../../services/firebase';
+import { CountrySelectionModal, COUNTRY_CODES, type CountryCodeOption } from '../../components/common/CountrySelectionModal';
 
 interface AuthScreenProps {
   onAuthenticated?: () => void;
@@ -26,203 +29,173 @@ interface AuthSessionPayload {
   displayName: string;
 }
 
-type Mode = 'login' | 'signup';
-type LoginField = 'loginMobileNo' | 'loginPassword';
-type SignupField =
-  | 'fullName'
-  | 'email'
-  | 'mobileNo'
-  | 'bloodGroup'
-  | 'aadharCard'
-  | 'additionalMedicalInfo'
-  | 'signupPassword'
-  | 'confirmPassword';
-
-type LoginErrors = Partial<Record<LoginField, string>>;
-type SignupErrors = Partial<Record<SignupField, string>>;
+type AuthMode = 'signup' | 'login';
 
 const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 
-function normalizeDigits(value: string): string {
-  return value.replace(/\D+/g, '');
-}
-
-function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function isValidBloodGroup(value: string): boolean {
-  return BLOOD_GROUP_OPTIONS.includes(value.trim().toUpperCase() as (typeof BLOOD_GROUP_OPTIONS)[number]);
-}
-
-function isValidPassword(value: string): boolean {
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(value);
-}
-
 export function AuthScreen({ onAuthenticated }: AuthScreenProps): React.JSX.Element {
   const { colors, isDark } = useTheme();
-  const [mode, setMode] = useState<Mode>('login');
 
-  const [loginMobileNo, setLoginMobileNo] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  const [fullName, setFullName] = useState('');
+  const [authMode, setAuthMode] = useState<AuthMode>('signup');
+  
+  // Form state
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [mobileNo, setMobileNo] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
+  const [isBloodGroupModalVisible, setIsBloodGroupModalVisible] = useState(false);
   const [aadharCard, setAadharCard] = useState('');
   const [additionalMedicalInfo, setAdditionalMedicalInfo] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
-  const [loginErrors, setLoginErrors] = useState<LoginErrors>({});
-  const [signupErrors, setSignupErrors] = useState<SignupErrors>({});
-
-  const palette = useMemo(
-    () => ({
-      background: colors.bgPrimary,
-      card: colors.surfacePrimary,
-      cardBorder: colors.surfaceBorder,
-      title: colors.textPrimary,
-      inputBg: isDark ? '#1C1F22' : colors.bgMuted,
-      inputBorder: isDark ? '#2B2F33' : colors.surfaceBorder,
-      inputText: colors.textPrimary,
-      inputPlaceholder: colors.textTertiary,
-      buttonBg: isDark ? '#1B1E21' : colors.bgSecondary,
-      buttonBorder: isDark ? '#2E3236' : colors.surfaceBorder,
-      buttonText: colors.textPrimary,
-      switchText: colors.textSecondary,
-      switchLink: colors.accent,
-      cardShadow: isDark ? '#000000' : '#64748B',
-      error: colors.emergency,
-    }),
-    [colors, isDark],
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Country selection state
+  const [selectedCountry, setSelectedCountry] = useState<CountryCodeOption>(
+    COUNTRY_CODES[0] || { code: '+91', flag: '🇮🇳', name: 'India' }
   );
+  const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
 
-  function switchMode(nextMode: Mode): void {
-    setMode(nextMode);
-    setLoginErrors({});
-    setSignupErrors({});
+  // Palette derived from theme logic
+  const palette = {
+    background: colors.bgPrimary,
+    cardBg: isDark ? colors.surfacePrimary : '#FFFFFF',
+    text: colors.textPrimary,
+    textMuted: colors.textSecondary,
+    border: colors.surfaceBorder,
+    primary: colors.accent,
+    primaryText: '#FFFFFF',
+    danger: colors.emergency,
+  };
+
+  function isValidEmail(val: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
   }
 
-  async function setSession(displayName: string): Promise<void> {
-    const session: AuthSessionPayload = {
-      isLoggedIn: true,
-      loggedInAt: Date.now(),
-      displayName,
-    };
-    await StorageService.set(STORAGE_KEYS.AUTH_SESSION, session);
-    onAuthenticated?.();
+  function isValidBloodGroup(val: string): boolean {
+    return BLOOD_GROUP_OPTIONS.includes(val.trim().toUpperCase() as any);
   }
 
-  function validateLoginForm(): LoginErrors {
-    const errors: LoginErrors = {};
-    const mobile = normalizeDigits(loginMobileNo);
-
-    if (!loginMobileNo.trim()) {
-      errors.loginMobileNo = 'Mobile number is required.';
-    } else if (!/^[6-9]\d{9}$/.test(mobile)) {
-      errors.loginMobileNo = 'Enter a valid 10-digit Indian mobile number.';
-    }
-
-    if (!loginPassword) {
-      errors.loginPassword = 'Password is required.';
-    }
-    return errors;
-  }
-
-  function validateSignupForm(): SignupErrors {
-    const errors: SignupErrors = {};
-    const name = fullName.trim();
-    const mail = email.trim().toLowerCase();
-    const mobile = normalizeDigits(mobileNo);
-    const aadhar = normalizeDigits(aadharCard);
-    const bg = bloodGroup.trim().toUpperCase();
-
-    if (!name) errors.fullName = 'Full name is required.';
-    if (!mail) errors.email = 'Email is required.';
-    if (!mobileNo.trim()) errors.mobileNo = 'Mobile number is required.';
-    if (!bloodGroup.trim()) errors.bloodGroup = 'Blood group is required.';
-    if (!aadharCard.trim()) errors.aadharCard = 'Aadhaar number is required.';
-    if (!signupPassword) errors.signupPassword = 'Password is required.';
-    if (!confirmPassword) errors.confirmPassword = 'Confirm password is required.';
-
-    if (name && name.length < 3) {
-      errors.fullName = 'Full name must be at least 3 characters.';
-    }
-    if (mail && !isValidEmail(mail)) {
-      errors.email = 'Please enter a valid email address.';
-    }
-    if (mobileNo.trim() && !/^[6-9]\d{9}$/.test(mobile)) {
-      errors.mobileNo = 'Enter a valid 10-digit Indian mobile number.';
-    }
-    if (bloodGroup.trim() && !isValidBloodGroup(bg)) {
-      errors.bloodGroup = 'Use valid blood group (A+, O-, AB+, etc.).';
-    }
-    if (aadharCard.trim() && !/^\d{12}$/.test(aadhar)) {
-      errors.aadharCard = 'Aadhaar must be exactly 12 digits.';
-    }
-    if (additionalMedicalInfo.trim() && additionalMedicalInfo.trim().length > 300) {
-      errors.additionalMedicalInfo = 'Additional medical info must be under 300 characters.';
-    }
-    if (signupPassword && !isValidPassword(signupPassword)) {
-      errors.signupPassword = 'Min 8 chars with upper, lower, number, special char.';
-    }
-    if (confirmPassword && confirmPassword !== signupPassword) {
-      errors.confirmPassword = 'Passwords do not match.';
-    }
-
-    return errors;
-  }
-
-  async function handleLogin(): Promise<void> {
-    const errors = validateLoginForm();
-    setLoginErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      Alert.alert('Validation error', 'Please fix login fields.');
+  async function handleForgotPassword() {
+    if (!email.trim() || !isValidEmail(email.trim())) {
+      Alert.alert('Validation Error', 'Please enter your registered email address first to reset your password.');
       return;
     }
 
-    const profileResult = await StorageService.get<AuthProfile>(STORAGE_KEYS.AUTH_PROFILE);
-    if (!profileResult.success || profileResult.data === null) {
-      Alert.alert('No account found', 'Please sign up first.');
-      switchMode('signup');
-      return;
+    setIsLoading(true);
+    try {
+      await firebaseAuth.sendPasswordResetEmail(email.trim());
+      Alert.alert('Success', 'Password reset email sent! Please check your inbox and spam folder.');
+    } catch (error: any) {
+      console.error('Password Reset Error:', error);
+      if (error.code === 'auth/user-not-found') {
+        Alert.alert('Error', 'No account found with this email address.');
+      } else {
+        Alert.alert('Error', 'Failed to send password reset email. Please try again later.');
+      }
+    } finally {
+      setIsLoading(false);
     }
-
-    const profile = profileResult.data;
-    const mobileMatch = normalizeDigits(loginMobileNo) === profile.mobileNo;
-    const passwordMatch = loginPassword === profile.password;
-
-    if (!mobileMatch || !passwordMatch) {
-      Alert.alert('Login failed', 'Invalid mobile number or password.');
-      return;
-    }
-
-    await setSession(profile.fullName);
   }
 
-  async function handleSignup(): Promise<void> {
-    const errors = validateSignupForm();
-    setSignupErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      Alert.alert('Validation error', 'Please correct highlighted signup fields.');
+  async function handleAuth() {
+    if (!email.trim() || !isValidEmail(email.trim())) {
+      Alert.alert('Validation Error', 'Please enter a valid email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      Alert.alert('Validation Error', 'Password must be at least 6 characters.');
       return;
     }
 
-    const payload: AuthProfile = {
-      fullName: fullName.trim(),
-      email: email.trim().toLowerCase(),
-      mobileNo: normalizeDigits(mobileNo),
-      bloodGroup: bloodGroup.trim().toUpperCase(),
-      aadharCard: normalizeDigits(aadharCard),
-      additionalMedicalInfo: additionalMedicalInfo.trim(),
-      password: signupPassword,
-      createdAt: Date.now(),
-    };
+    if (authMode === 'signup') {
+      if (!fullName.trim() || fullName.length < 3) {
+        Alert.alert('Validation Error', 'Please enter a valid full name (min 3 characters).');
+        return;
+      }
+      const cleanMobile = mobileNo.replace(/\D+/g, '');
+      if (cleanMobile.length !== 10) {
+        Alert.alert('Validation Error', 'Mobile number must be exactly 10 digits.');
+        return;
+      }
+      const bg = bloodGroup.trim().toUpperCase();
+      if (!bg || !isValidBloodGroup(bg)) {
+        Alert.alert('Validation Error', 'Please select a valid blood group.');
+        return;
+      }
+      const cleanAadhar = aadharCard.replace(/\D+/g, '');
+      if (cleanAadhar && !/^\d{12}$/.test(cleanAadhar)) {
+        Alert.alert('Validation Error', 'Aadhaar must be exactly 12 digits.');
+        return;
+      }
+    }
 
-    await StorageService.set(STORAGE_KEYS.AUTH_PROFILE, payload);
-    await setSession(payload.fullName);
+    setIsLoading(true);
+    try {
+      if (authMode === 'signup') {
+        // Create user in Firebase
+        await firebaseAuth.createUserWithEmailAndPassword(email.trim(), password);
+        
+        // Save local profile
+        const payload: AuthProfile = {
+          fullName: fullName.trim(),
+          email: email.trim().toLowerCase(),
+          mobileNo: mobileNo.replace(/\D+/g, ''),
+          countryCode: selectedCountry.code,
+          countryName: selectedCountry.name,
+          bloodGroup: bloodGroup.trim().toUpperCase(),
+          aadharCard: aadharCard.replace(/\D+/g, ''),
+          additionalMedicalInfo: additionalMedicalInfo.trim(),
+          passwordHash: 'secured-by-firebase', 
+          createdAt: Date.now(),
+        };
+
+        await StorageService.set(STORAGE_KEYS.AUTH_PROFILE, payload);
+        await StorageService.set(STORAGE_KEYS.MEDICAL_PROFILE, payload);
+        await StorageService.set(STORAGE_KEYS.PROFILE_SETUP_DONE, 'true');
+
+        const sessionPayload: AuthSessionPayload = {
+          isLoggedIn: true,
+          loggedInAt: Date.now(),
+          displayName: payload.fullName,
+        };
+        await StorageService.set(STORAGE_KEYS.AUTH_SESSION, sessionPayload);
+
+      } else {
+        // Log in existing user
+        await firebaseAuth.signInWithEmailAndPassword(email.trim(), password);
+        
+        let displayName = 'User';
+        const profileRes = await StorageService.get<AuthProfile>(STORAGE_KEYS.AUTH_PROFILE);
+        if (profileRes.success && profileRes.data) {
+          displayName = profileRes.data.fullName;
+        }
+
+        const sessionPayload: AuthSessionPayload = {
+          isLoggedIn: true,
+          loggedInAt: Date.now(),
+          displayName,
+        };
+        await StorageService.set(STORAGE_KEYS.AUTH_SESSION, sessionPayload);
+        
+        // Mark setup as done in case they uninstalled and reinstalled
+        await StorageService.set(STORAGE_KEYS.PROFILE_SETUP_DONE, 'true');
+      }
+
+      if (onAuthenticated) {
+        onAuthenticated();
+      }
+    } catch (error: any) {
+      console.error('Auth Error:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        Alert.alert('Error', 'That email address is already registered. Try logging in.');
+      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        Alert.alert('Error', 'Invalid email or password.');
+      } else {
+        Alert.alert('Authentication Error', 'Failed to authenticate. Please check your credentials and internet connection.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -238,334 +211,235 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps): React.JSX.Elem
         <View
           style={[
             styles.card,
-            {
-              backgroundColor: palette.card,
-              borderColor: palette.cardBorder,
-              shadowColor: palette.cardShadow,
-            },
+            { backgroundColor: palette.cardBg, borderColor: palette.border },
           ]}
         >
-          <Text style={[styles.formDetails, { color: palette.title }]}>
-            {mode === 'login' ? 'Login' : 'Sign Up'}
+          <Text style={[styles.title, { color: palette.primary }]}>
+            {authMode === 'signup' ? 'Create Account' : 'Welcome Back'}
+          </Text>
+          <Text style={[styles.subtitle, { color: palette.textMuted }]}>
+            {authMode === 'signup' 
+              ? 'Complete your emergency profile to continue.' 
+              : 'Log in to access your emergency profile.'}
           </Text>
 
-          {mode === 'login' ? (
+          <TextInput
+            style={[
+              styles.input,
+              { color: palette.text, borderColor: palette.border, backgroundColor: palette.cardBg },
+            ]}
+            placeholder="Email Address *"
+            placeholderTextColor={palette.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+            maxLength={100}
+            editable={!isLoading}
+            textContentType="emailAddress"
+            autoComplete="email"
+            autoCorrect={false}
+          />
+
+          <TextInput
+            style={[
+              styles.input,
+              { color: palette.text, borderColor: palette.border, backgroundColor: palette.cardBg },
+            ]}
+            placeholder="Password *"
+            placeholderTextColor={palette.textMuted}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            maxLength={50}
+            editable={!isLoading}
+            textContentType="password"
+            autoComplete="password"
+          />
+
+          {authMode === 'signup' && (
             <>
-              <TextInput
-                placeholder="Mobile Number"
-                placeholderTextColor={palette.inputPlaceholder}
-                style={[
-                  styles.input,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
-                value={loginMobileNo}
-                onChangeText={(value) => {
-                  setLoginMobileNo(value);
-                  if (loginErrors.loginMobileNo) {
-                    setLoginErrors((prev) => ({ ...prev, loginMobileNo: undefined }));
-                  }
-                }}
-                keyboardType="number-pad"
-                autoCorrect={false}
-              />
-              {loginErrors.loginMobileNo ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{loginErrors.loginMobileNo}</Text>
-              ) : null}
+              <View style={styles.divider} />
+              <Text style={[styles.formDetails, { color: palette.text }]}>Personal Details</Text>
 
               <TextInput
-                placeholder="Password"
-                placeholderTextColor={palette.inputPlaceholder}
                 style={[
                   styles.input,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
+                  { color: palette.text, borderColor: palette.border, backgroundColor: palette.cardBg },
                 ]}
-                value={loginPassword}
-                onChangeText={(value) => {
-                  setLoginPassword(value);
-                  if (loginErrors.loginPassword) {
-                    setLoginErrors((prev) => ({ ...prev, loginPassword: undefined }));
-                  }
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {loginErrors.loginPassword ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{loginErrors.loginPassword}</Text>
-              ) : null}
-
-              <TouchableOpacity
-                style={[
-                  styles.btn,
-                  {
-                    backgroundColor: palette.buttonBg,
-                    borderColor: palette.buttonBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
-                onPress={() => void handleLogin()}
-              >
-                <Text style={[styles.btnText, { color: palette.buttonText }]}>Login</Text>
-              </TouchableOpacity>
-
-              <Text style={[styles.switchText, { color: palette.switchText }]}>
-                Don't have an account?{' '}
-                <Text style={[styles.switchLink, { color: palette.switchLink }]} onPress={() => switchMode('signup')}>
-                  Sign Up
-                </Text>
-              </Text>
-            </>
-          ) : (
-            <>
-              <TextInput
-                placeholder="Full Name"
-                placeholderTextColor={palette.inputPlaceholder}
-                style={[
-                  styles.input,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
+                placeholder="Full Name *"
+                placeholderTextColor={palette.textMuted}
                 value={fullName}
-                onChangeText={(value) => {
-                  setFullName(value);
-                  if (signupErrors.fullName) setSignupErrors((prev) => ({ ...prev, fullName: undefined }));
-                }}
-              />
-              {signupErrors.fullName ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{signupErrors.fullName}</Text>
-              ) : null}
-
-              <TextInput
-                placeholder="Email"
-                placeholderTextColor={palette.inputPlaceholder}
-                style={[
-                  styles.input,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
-                value={email}
-                onChangeText={(value) => {
-                  setEmail(value);
-                  if (signupErrors.email) setSignupErrors((prev) => ({ ...prev, email: undefined }));
-                }}
-                autoCapitalize="none"
-                keyboardType="email-address"
+                onChangeText={setFullName}
+                maxLength={50}
+                editable={!isLoading}
+                textContentType="name"
+                autoComplete="name"
+                autoCapitalize="words"
                 autoCorrect={false}
               />
-              {signupErrors.email ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{signupErrors.email}</Text>
-              ) : null}
 
-              <TextInput
-                placeholder="Mobile Number"
-                placeholderTextColor={palette.inputPlaceholder}
-                style={[
-                  styles.input,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
-                value={mobileNo}
-                onChangeText={(value) => {
-                  setMobileNo(value);
-                  if (signupErrors.mobileNo) setSignupErrors((prev) => ({ ...prev, mobileNo: undefined }));
-                }}
-                keyboardType="number-pad"
-                autoCorrect={false}
-              />
-              {signupErrors.mobileNo ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{signupErrors.mobileNo}</Text>
-              ) : null}
-
-              <View style={styles.bloodGroupWrap}>
-                <Text style={[styles.selectorLabel, { color: palette.inputText }]}>Blood Group</Text>
-                <View style={styles.bloodGroupGrid}>
-                  {BLOOD_GROUP_OPTIONS.map((option) => {
-                    const selected = bloodGroup === option;
-                    return (
-                      <TouchableOpacity
-                        key={option}
-                        style={[
-                          styles.bloodGroupOption,
-                          {
-                            backgroundColor: selected ? palette.switchLink : palette.inputBg,
-                            borderColor: selected ? palette.switchLink : palette.inputBorder,
-                          },
-                        ]}
-                        onPress={() => {
-                          setBloodGroup(option);
-                          if (signupErrors.bloodGroup) {
-                            setSignupErrors((prev) => ({ ...prev, bloodGroup: undefined }));
-                          }
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Select blood group ${option}`}
-                      >
-                        <Text
-                          style={[
-                            styles.bloodGroupOptionText,
-                            { color: selected ? palette.buttonText : palette.inputText },
-                          ]}
-                        >
-                          {option}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+              <View style={{ flexDirection: 'row', width: '100%', gap: 8, marginBottom: 16 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.input,
+                    { flex: 0.3, justifyContent: 'center', alignItems: 'center', marginBottom: 0, borderColor: palette.border, backgroundColor: palette.cardBg },
+                  ]}
+                  onPress={() => setIsCountryModalVisible(true)}
+                  disabled={isLoading}
+                >
+                  <Text style={{ color: palette.text, fontSize: 16 }}>
+                    {selectedCountry.flag} {selectedCountry.code}
+                  </Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { flex: 0.7, color: palette.text, borderColor: palette.border, backgroundColor: palette.cardBg, marginBottom: 0 },
+                  ]}
+                  placeholder="Mobile Number *"
+                  placeholderTextColor={palette.textMuted}
+                  keyboardType="numeric"
+                  maxLength={15}
+                  value={mobileNo}
+                  onChangeText={setMobileNo}
+                  editable={!isLoading}
+                  textContentType="telephoneNumber"
+                  autoComplete="tel"
+                />
               </View>
-              {signupErrors.bloodGroup ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{signupErrors.bloodGroup}</Text>
-              ) : null}
+
+              <View style={styles.row}>
+                <TouchableOpacity
+                  style={[
+                    styles.input,
+                    styles.flexInput,
+                    { justifyContent: 'center', borderColor: palette.border, backgroundColor: palette.cardBg, marginRight: 8 },
+                  ]}
+                  onPress={() => setIsBloodGroupModalVisible(true)}
+                  disabled={isLoading}
+                >
+                  <Text style={{ color: bloodGroup ? palette.text : palette.textMuted, fontSize: 16 }}>
+                    {bloodGroup || 'Blood Group *'}
+                  </Text>
+                </TouchableOpacity>
+                
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.flexInput,
+                    { color: palette.text, borderColor: palette.border, backgroundColor: palette.cardBg, marginLeft: 8 },
+                  ]}
+                  placeholder="Aadhaar (Optional)"
+                  placeholderTextColor={palette.textMuted}
+                  keyboardType="numeric"
+                  maxLength={12}
+                  value={aadharCard}
+                  onChangeText={setAadharCard}
+                  editable={!isLoading}
+                  textContentType="none"
+                  autoComplete="off"
+                />
+              </View>
 
               <TextInput
-                placeholder="Aadhaar Card Number"
-                placeholderTextColor={palette.inputPlaceholder}
-                style={[
-                  styles.input,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
-                value={aadharCard}
-                onChangeText={(value) => {
-                  setAadharCard(value);
-                  if (signupErrors.aadharCard) setSignupErrors((prev) => ({ ...prev, aadharCard: undefined }));
-                }}
-                keyboardType="number-pad"
-                autoCorrect={false}
-              />
-              {signupErrors.aadharCard ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{signupErrors.aadharCard}</Text>
-              ) : null}
-
-              <TextInput
-                placeholder="Additional Medical Information (optional)"
-                placeholderTextColor={palette.inputPlaceholder}
                 style={[
                   styles.input,
                   styles.multilineInput,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
+                  { color: palette.text, borderColor: palette.border, backgroundColor: palette.cardBg },
                 ]}
-                value={additionalMedicalInfo}
-                onChangeText={(value) => {
-                  setAdditionalMedicalInfo(value);
-                  if (signupErrors.additionalMedicalInfo) {
-                    setSignupErrors((prev) => ({ ...prev, additionalMedicalInfo: undefined }));
-                  }
-                }}
+                placeholder="Medical Conditions / Allergies (Optional)"
+                placeholderTextColor={palette.textMuted}
                 multiline
                 numberOfLines={3}
-                textAlignVertical="top"
-                autoCorrect={false}
+                value={additionalMedicalInfo}
+                onChangeText={setAdditionalMedicalInfo}
+                maxLength={500}
+                editable={!isLoading}
+                autoCapitalize="sentences"
+                autoCorrect={true}
               />
-              {signupErrors.additionalMedicalInfo ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{signupErrors.additionalMedicalInfo}</Text>
-              ) : null}
-
-              <TextInput
-                placeholder="Password"
-                placeholderTextColor={palette.inputPlaceholder}
-                style={[
-                  styles.input,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
-                value={signupPassword}
-                onChangeText={(value) => {
-                  setSignupPassword(value);
-                  if (signupErrors.signupPassword) setSignupErrors((prev) => ({ ...prev, signupPassword: undefined }));
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {signupErrors.signupPassword ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{signupErrors.signupPassword}</Text>
-              ) : null}
-
-              <TextInput
-                placeholder="Confirm Password"
-                placeholderTextColor={palette.inputPlaceholder}
-                style={[
-                  styles.input,
-                  {
-                    color: palette.inputText,
-                    backgroundColor: palette.inputBg,
-                    borderColor: palette.inputBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
-                value={confirmPassword}
-                onChangeText={(value) => {
-                  setConfirmPassword(value);
-                  if (signupErrors.confirmPassword) setSignupErrors((prev) => ({ ...prev, confirmPassword: undefined }));
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {signupErrors.confirmPassword ? (
-                <Text style={[styles.errorText, { color: palette.error }]}>{signupErrors.confirmPassword}</Text>
-              ) : null}
-
-              <TouchableOpacity
-                style={[
-                  styles.btn,
-                  {
-                    backgroundColor: palette.buttonBg,
-                    borderColor: palette.buttonBorder,
-                    shadowColor: palette.cardShadow,
-                  },
-                ]}
-                onPress={() => void handleSignup()}
-              >
-                <Text style={[styles.btnText, { color: palette.buttonText }]}>Signup</Text>
-              </TouchableOpacity>
-
-              <Text style={[styles.switchText, { color: palette.switchText }]}>
-                Already have an account?{' '}
-                <Text style={[styles.switchLink, { color: palette.switchLink }]} onPress={() => switchMode('login')}>
-                  Sign In
-                </Text>
-              </Text>
             </>
           )}
+
+          {authMode === 'login' && (
+            <TouchableOpacity 
+              onPress={handleForgotPassword} 
+              style={{ width: '100%', alignItems: 'flex-end', marginBottom: 12, marginTop: -8 }}
+              disabled={isLoading}
+            >
+              <Text style={{ color: palette.primary, fontWeight: '600', fontSize: 13 }}>
+                Forgot Password?
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: palette.primary, borderColor: palette.primary }]}
+            onPress={handleAuth}
+            disabled={isLoading}
+          >
+            <Text style={[styles.btnText, { color: palette.primaryText }]}>
+              {isLoading ? 'Processing...' : authMode === 'signup' ? 'Sign Up' : 'Log In'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setAuthMode(authMode === 'signup' ? 'login' : 'signup')}
+            style={{ marginTop: 20 }}
+            disabled={isLoading}
+          >
+            <Text style={[styles.switchLink, { color: palette.primary }]}>
+              {authMode === 'signup' 
+                ? 'Already have an account? Log In' 
+                : "Don't have an account? Sign Up"}
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Country Selection Modal */}
+      <CountrySelectionModal
+        visible={isCountryModalVisible}
+        onClose={() => setIsCountryModalVisible(false)}
+        onSelect={(country) => {
+          setSelectedCountry(country);
+          setIsCountryModalVisible(false);
+        }}
+        selectedCode={selectedCountry.code}
+      />
+
+      {/* Blood Group Modal */}
+      <Modal visible={isBloodGroupModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: palette.cardBg }]}>
+            <Text style={[styles.modalTitle, { color: palette.text }]}>Select Blood Group</Text>
+            <View style={styles.bloodGroupGrid}>
+              {BLOOD_GROUP_OPTIONS.map(bg => (
+                <TouchableOpacity
+                  key={bg}
+                  style={[
+                    styles.bloodGroupChip,
+                    { borderColor: palette.border, backgroundColor: bg === bloodGroup ? palette.primary : palette.background }
+                  ]}
+                  onPress={() => {
+                    setBloodGroup(bg);
+                    setIsBloodGroupModalVisible(false);
+                  }}
+                >
+                  <Text style={{ color: bg === bloodGroup ? palette.primaryText : palette.text, fontWeight: '700' }}>
+                    {bg}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setIsBloodGroupModalVisible(false)}>
+              <Text style={{ color: palette.primary, fontWeight: '700' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </KeyboardAvoidingView>
   );
 }
@@ -576,17 +450,14 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    alignItems: 'center',
+    paddingHorizontal: 20,
     justifyContent: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    paddingVertical: 40,
   },
   card: {
     width: '100%',
-    maxWidth: 360,
-    paddingVertical: 30,
-    paddingHorizontal: 22,
     borderRadius: 16,
+    padding: 24,
     borderWidth: 1.5,
     alignItems: 'center',
     shadowOffset: { width: 0, height: 8 },
@@ -594,16 +465,41 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
+  title: {
+    fontSize: 34,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+    backgroundColor: '#E2E8F0',
+    marginVertical: 16,
+  },
   formDetails: {
-    fontSize: 27,
+    fontSize: 22,
     fontWeight: '700',
     marginBottom: 14,
+    alignSelf: 'flex-start',
+  },
+  row: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
   },
   input: {
     width: '100%',
     minHeight: 46,
     paddingHorizontal: 12,
-    marginBottom: 6,
+    marginBottom: 16,
     borderRadius: 7,
     borderWidth: 2,
     shadowOffset: { width: 6, height: 6 },
@@ -611,14 +507,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  flexInput: {
+    flex: 1,
+  },
   multilineInput: {
-    minHeight: 84,
-    paddingTop: 10,
+    minHeight: 80,
+    paddingTop: 12,
+    textAlignVertical: 'top',
   },
   btn: {
-    marginTop: 4,
-    minHeight: 42,
-    width: 140,
+    marginTop: 10,
+    minHeight: 46,
+    width: '100%',
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
@@ -629,48 +529,45 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   btnText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-  },
-  switchText: {
-    marginTop: 16,
-    fontSize: 13,
-    textAlign: 'center',
   },
   switchLink: {
     fontWeight: '800',
     textDecorationLine: 'underline',
   },
-  errorText: {
-    width: '100%',
-    marginBottom: 8,
-    fontSize: 12,
-    fontWeight: '600',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  bloodGroupWrap: {
-    width: '100%',
-    marginBottom: 6,
+  modalContent: {
+    width: '80%',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
   },
-  selectorLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 20,
   },
   bloodGroupGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  bloodGroupOption: {
-    width: '23%',
-    minHeight: 42,
-    borderRadius: 7,
-    borderWidth: 2,
+  bloodGroupChip: {
+    width: '22%',
+    paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
   },
-  bloodGroupOptionText: {
-    fontSize: 13,
-    fontWeight: '700',
+  modalCancel: {
+    marginTop: 24,
+    padding: 10,
   },
 });

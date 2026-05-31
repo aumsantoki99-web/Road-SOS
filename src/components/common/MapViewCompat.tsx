@@ -8,24 +8,26 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import type {
+  ViewStyle,
+  StyleProp,
+  GestureResponderEvent,
+  PanResponderGestureState} from 'react-native';
 import {
   View,
   Text,
   StyleSheet,
-  ViewStyle,
-  StyleProp,
   PanResponder,
   TouchableOpacity,
   Animated,
   Easing,
-  GestureResponderEvent,
-  PanResponderGestureState,
+  Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // Force the high-fidelity interactive fallback to bypass native Google Map blank screen limits in Expo Go
-const isAvailable = false;
+const isAvailable = true;
 
 // ─── Fallback Map Implementation ──────────────────────────────────────────────
 
@@ -478,15 +480,14 @@ function FallbackMap({
               {customContent}
             </View>
           ) : (
-            // Clean Google Maps red drop-pin
-            <View style={styles.googlePinContainer}>
+            // Cute 3D Rider Marker
+            <View style={[styles.googlePinContainer, { width: 56, height: 56 }]}>
               {/* Teardrop drop shadow circle */}
-              <View style={styles.pinShadow} />
-              <View style={styles.pinWrapper}>
-                <Ionicons name="location" size={32} color="#EF4444" />
-                {/* White inner center dot in pin head */}
-                <View style={styles.pinInnerDot} />
-              </View>
+              <View style={[styles.pinShadow, { width: 24, bottom: -4 }]} />
+              <Image 
+                source={require('../../assets/rider_marker.png')} 
+                style={{ width: 56, height: 56, resizeMode: 'contain' }}
+              />
             </View>
           )}
         </TouchableOpacity>
@@ -637,11 +638,11 @@ function FallbackCircle(_props: any): null {
 
 // ─── Exports — Drop-in replacements ──────────────────────────────────────────
 
-export const MapView: any = isAvailable ? null : FallbackMap;
-export const Marker: any = isAvailable ? null : FallbackMarker;
-export const Polyline: any = isAvailable ? null : FallbackPolyline;
-export const Circle: any = isAvailable ? null : FallbackCircle;
-export const PROVIDER_DEFAULT: any = null;
+export const MapView: any = isAvailable ? require('react-native-maps').default : FallbackMap;
+export const Marker: any = isAvailable ? require('react-native-maps').Marker : FallbackMarker;
+export const Polyline: any = isAvailable ? require('react-native-maps').Polyline : FallbackPolyline;
+export const Circle: any = isAvailable ? require('react-native-maps').Circle : FallbackCircle;
+export const PROVIDER_DEFAULT: any = isAvailable ? require('react-native-maps').PROVIDER_DEFAULT : null;
 export default MapView;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

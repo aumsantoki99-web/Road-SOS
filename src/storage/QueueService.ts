@@ -29,6 +29,7 @@ import type { QueuedAlert, AlertType } from '../types';
 // ─── Expiry ───────────────────────────────────────────────────────────────────
 
 const ITEM_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+let flushInFlight: Promise<{ synced: number; failed: number }> | null = null;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -119,6 +120,9 @@ export const QueueService = {
    *   for each alert type.
    */
   async flush(): Promise<{ synced: number; failed: number }> {
+    if (flushInFlight) return flushInFlight;
+
+    flushInFlight = (async () => {
     const items = await QueueService.getAll();
     const pending = items.filter(
       (item) =>
@@ -142,8 +146,15 @@ export const QueueService = {
       }
     }
 
-    console.warn(`[QueueService] flush(): synced=${synced}, failed=${failed}`);
-    return { synced, failed };
+      console.warn(`[QueueService] flush(): synced=${synced}, failed=${failed}`);
+      return { synced, failed };
+    })();
+
+    try {
+      return await flushInFlight;
+    } finally {
+      flushInFlight = null;
+    }
   },
 
   /**

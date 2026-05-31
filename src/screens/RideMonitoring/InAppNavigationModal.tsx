@@ -9,7 +9,6 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from '../../components/common/MapViewCompat';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -27,13 +26,13 @@ import type { Hospital } from '../../types';
 import type { InAppNavigationScreenProps } from '../../navigation/types';
 import type { RouteDetails, RouteStep } from '../../services/navigation.service';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export function InAppNavigationModal({ route }: InAppNavigationScreenProps): React.JSX.Element {
   const { colors, isDark } = useTheme();
   const nav = useAppNavigation();
   const { hospitalId } = route.params;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
   const { location: liveLoc } = useLiveLocation(true);
 
@@ -387,7 +386,7 @@ export function InAppNavigationModal({ route }: InAppNavigationScreenProps): Rea
         {/* Dynamic Turn Cue instruction */}
         <View style={[styles.turnCard, { backgroundColor: colors.safeSubtle, borderColor: colors.safeMuted }]}>
           <View style={[styles.turnIconWrap, { backgroundColor: colors.safe }]}>
-            <Ionicons name={iconName as any} size={24} color="#FFFFFF" />
+            <Ionicons name={iconName as never} size={24} color="#FFFFFF" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[textStyles.headingMedium, { color: colors.textPrimary }]} numberOfLines={2}>

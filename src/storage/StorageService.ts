@@ -17,15 +17,33 @@
  * TODO (backend sync): after each set(), call SyncService.markDirty(key)
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS } from '../constants';
+import * as SecureStore from 'expo-secure-store';
+import { APP_STORAGE_SCHEMA_VERSION, STORAGE_KEYS } from '../constants';
 import type { StorageKey } from '../constants';
+import type { AuthProfile } from '../types';
 
 // ─── Result type ──────────────────────────────────────────────────────────────
 
 export type StorageResult<T> =
   | { success: true;  data: T }
   | { success: false; error: string };
+
+function hashPassword(value: string): string {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return `rs_${Math.abs(hash).toString(16)}`;
+}
+
+/**
+ * Expo SecureStore strictly requires keys to contain only alphanumeric characters, `.`, `-`, and `_`.
+ * This helper sanitizes internal keys (like `@ridesafe/contacts`) to comply with this requirement.
+ */
+function getSafeKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -37,7 +55,7 @@ export const StorageService = {
    */
   async get<T>(key: StorageKey): Promise<StorageResult<T | null>> {
     try {
-      const raw = await AsyncStorage.getItem(key);
+      const raw = await SecureStore.getItemAsync(getSafeKey(key));
       if (raw === null) return { success: true, data: null };
       return { success: true, data: JSON.parse(raw) as T };
     } catch (err) {
@@ -52,7 +70,7 @@ export const StorageService = {
    */
   async set<T>(key: StorageKey, value: T): Promise<StorageResult<void>> {
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(value));
+      await SecureStore.setItemAsync(getSafeKey(key), JSON.stringify(value));
       return { success: true, data: undefined };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown write error';
@@ -66,7 +84,7 @@ export const StorageService = {
    */
   async remove(key: StorageKey): Promise<StorageResult<void>> {
     try {
-      await AsyncStorage.removeItem(key);
+      await SecureStore.deleteItemAsync(getSafeKey(key));
       return { success: true, data: undefined };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown remove error';
@@ -82,7 +100,7 @@ export const StorageService = {
   async clear(): Promise<StorageResult<void>> {
     try {
       const keys = Object.values(STORAGE_KEYS);
-      await AsyncStorage.multiRemove(keys);
+      await Promise.all(keys.map(k => SecureStore.deleteItemAsync(getSafeKey(k))));
       return { success: true, data: undefined };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown clear error';
@@ -96,7 +114,7 @@ export const StorageService = {
    */
   async has(key: StorageKey): Promise<boolean> {
     try {
-      const raw = await AsyncStorage.getItem(key);
+      const raw = await SecureStore.getItemAsync(getSafeKey(key));
       return raw !== null;
     } catch {
       return false;
@@ -109,9 +127,9 @@ export const StorageService = {
    */
   async getMany<T>(keys: StorageKey[]): Promise<Record<string, T | null>> {
     try {
-      const pairs = await AsyncStorage.multiGet(keys);
       const result: Record<string, T | null> = {};
-      for (const [key, raw] of pairs) {
+      for (const key of keys) {
+        const raw = await SecureStore.getItemAsync(getSafeKey(key));
         result[key] = raw !== null ? (JSON.parse(raw) as T) : null;
       }
       return result;
@@ -128,11 +146,38 @@ export const StorageService = {
    */
   async initialize(): Promise<boolean> {
     try {
-      await AsyncStorage.getItem('@ridesafe/__init_check__');
+      await SecureStore.getItemAsync(getSafeKey('@ridesafe/__init_check__'));
+      await StorageService.runMigrations();
       return true;
     } catch (err) {
       console.warn('[StorageService] Storage not accessible:', err);
       return false;
     }
+  },
+
+  async runMigrations(): Promise<void> {
+    const schema = await StorageService.get<number>(STORAGE_KEYS.STORAGE_SCHEMA_VERSION);
+    const currentVersion = schema.success && typeof schema.data === 'number' ? schema.data : 1;
+
+    if (currentVersion >= APP_STORAGE_SCHEMA_VERSION) return;
+
+    if (currentVersion < 2) {
+      const profile = await StorageService.get<(AuthProfile & { password?: string })>(STORAGE_KEYS.AUTH_PROFILE);
+      if (profile.success && profile.data && !profile.data.passwordHash && profile.data.password) {
+        const migrated: AuthProfile = {
+          fullName: profile.data.fullName,
+          email: profile.data.email,
+          mobileNo: profile.data.mobileNo,
+          bloodGroup: profile.data.bloodGroup,
+          aadharCard: profile.data.aadharCard,
+          additionalMedicalInfo: profile.data.additionalMedicalInfo,
+          createdAt: profile.data.createdAt,
+          passwordHash: hashPassword(profile.data.password),
+        };
+        await StorageService.set(STORAGE_KEYS.AUTH_PROFILE, migrated);
+      }
+    }
+
+    await StorageService.set(STORAGE_KEYS.STORAGE_SCHEMA_VERSION, APP_STORAGE_SCHEMA_VERSION);
   },
 } as const;

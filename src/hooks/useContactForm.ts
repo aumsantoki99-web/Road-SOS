@@ -15,8 +15,9 @@
  *   form.submit(async (values) => await addContact(values));
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { isValidPhone, isNonEmpty } from '../utils';
+import { COUNTRY_CODES } from '../components/common/CountrySelectionModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,8 +68,18 @@ function validate(values: ContactFormValues): FieldErrors {
 
   if (!isNonEmpty(values.phone)) {
     errors.phone = 'Phone number is required';
-  } else if (!isValidPhone(values.phone)) {
-    errors.phone = 'Enter a valid mobile number (7 to 15 digits)';
+  } else {
+    let localPart = values.phone;
+    for (const country of COUNTRY_CODES) {
+      if (localPart.startsWith(country.code)) {
+        localPart = localPart.slice(country.code.length);
+        break;
+      }
+    }
+    const cleanLocal = localPart.replace(/\D/g, '');
+    if (cleanLocal.length !== 10) {
+      errors.phone = 'Mobile number must be exactly 10 digits (excluding country code)';
+    }
   }
 
   if (!isNonEmpty(values.relationship)) {
@@ -89,6 +100,14 @@ export function useContactForm(
   });
   const [touched, setTouched] = useState<Record<keyof ContactFormValues, boolean>>(DEFAULT_TOUCHED);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setValues((prev) => ({
+      name: initial.name ?? prev.name,
+      phone: initial.phone ?? prev.phone,
+      relationship: initial.relationship ?? prev.relationship,
+    }));
+  }, [initial.name, initial.phone, initial.relationship]);
 
   const errors = validate(values);
   const isValid = Object.keys(errors).length === 0;

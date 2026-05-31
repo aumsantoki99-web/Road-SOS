@@ -24,6 +24,7 @@ import {
   RefreshControl,
   Animated,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,12 +45,12 @@ import { RecentRideCard } from './RecentRideCard';
 import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
-import { mockRideHistory, mockContacts } from '../../mock';
 import type { HomeScreenProps } from '../../navigation/types';
+import type { EmergencyContact, RideSession } from '../../types';
 import { StorageService } from '../../storage/StorageService';
+import { useStorage } from '../../hooks/useStorage';
 import { STORAGE_KEYS } from '../../constants';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { SosService, NotificationService } from '../../services';
 
 // ─── Safety status chip ───────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ function ActionTile({ icon, label, sublabel, color, onPress, badge, hero = false
   }
 
   return (
-    <Animated.View style={{ transform: [{ scale }], flex: hero ? 0 : 1 }}>
+    <Animated.View style={{ transform: [{ scale }], flex: hero ? 0 : 1, flexBasis: hero ? 'auto' : 0 }}>
       <TouchableOpacity
         onPress={onPress}
         onPressIn={onPressIn}
@@ -128,6 +129,7 @@ function ActionTile({ icon, label, sublabel, color, onPress, badge, hero = false
           {
             backgroundColor: colors.surfacePrimary,
             borderColor: colors.surfaceBorder,
+            flex: 1, // Stretch to match other tiles in the row
           },
           shadows.card,
         ]}
@@ -139,10 +141,14 @@ function ActionTile({ icon, label, sublabel, color, onPress, badge, hero = false
           <Ionicons name={icon as 'home'} size={hero ? 26 : 22} color={color} />
         </View>
 
-        <Text style={[
-          hero ? textStyles.headingMedium : textStyles.headingSmall,
-          { color: colors.textPrimary, marginTop: hero ? 0 : spacing[2] }
-        ]} numberOfLines={hero ? 1 : 2}>
+        <Text 
+          style={[
+            hero ? textStyles.headingMedium : textStyles.headingSmall,
+            { color: colors.textPrimary, marginTop: hero ? 0 : spacing[2] }
+          ]} 
+          numberOfLines={1}
+          adjustsFontSizeToFit={true}
+        >
           {label}
         </Text>
 
@@ -166,13 +172,13 @@ function ActionTile({ icon, label, sublabel, color, onPress, badge, hero = false
 
 // ─── Safety score card ────────────────────────────────────────────────────────
 
-function SafetyScoreCard(): React.JSX.Element {
-  const { colors, isDark } = useTheme();
+function SafetyScoreCard({ rideCount, contactCount, incidentCount }: { rideCount: number, contactCount: number, incidentCount: number }): React.JSX.Element {
+  const { colors } = useTheme();
   const { t } = useTranslation();
   const stats = [
-    { value: mockRideHistory.length, label: t('home.rides'), icon: 'speedometer-outline' },
-    { value: mockContacts.length,    label: t('home.contacts'), icon: 'people-outline' },
-    { value: 0,                      label: t('home.incidents'), icon: 'shield-checkmark-outline' },
+    { value: rideCount, label: t('home.rides'), icon: 'speedometer-outline' },
+    { value: contactCount,    label: t('home.contacts'), icon: 'people-outline' },
+    { value: incidentCount,                      label: t('home.incidents'), icon: 'shield-checkmark-outline' },
   ];
 
   return (
@@ -214,7 +220,7 @@ function SafetyScoreCard(): React.JSX.Element {
 
 // ─── Timeline activity item ───────────────────────────────────────────────────
 
-function ActivityTimeline({ rides }: { rides: typeof mockRideHistory }): React.JSX.Element {
+function ActivityTimeline({ rides }: { rides: RideSession[] }): React.JSX.Element {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
@@ -255,6 +261,9 @@ function ActivityTimeline({ rides }: { rides: typeof mockRideHistory }): React.J
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
+const EMPTY_CONTACTS: EmergencyContact[] = [];
+const EMPTY_RIDES: RideSession[] = [];
+
 export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
   const { colors, isDark, isNight } = useTheme();
   const { t } = useTranslation();
@@ -281,30 +290,38 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
   useEffect(() => {
     headerFade.start();
     contentSlide.start();
-  }, []);
+  }, [headerFade, contentSlide]);
+
+  useEffect(() => {
+    async function checkMedicalId() {
+      const result = await StorageService.get<string>(STORAGE_KEYS.PROFILE_SETUP_DONE);
+      const isSetup = result.success && result.data === 'true';
+      const hasNeverSetup = !result.success || result.data === null || result.data === undefined;
+
+      setProfileComplete(isSetup);
+    }
+
+    if (isFocused) {
+      void checkMedicalId();
+    }
+  }, [isFocused, nav]);
+
+  const { data: contactsData, refresh: refreshContacts } = useStorage<EmergencyContact[]>(STORAGE_KEYS.CONTACTS, EMPTY_CONTACTS);
+  const { data: ridesData, refresh: refreshRides } = useStorage<RideSession[]>(STORAGE_KEYS.RIDE_HISTORY, EMPTY_RIDES);
 
   useEffect(() => {
     if (isFocused) {
-      async function checkMedicalId() {
-        const result = await StorageService.get<string>(STORAGE_KEYS.PROFILE_SETUP_DONE);
-        const isSetup = result.success && result.data === 'true';
-        const hasNeverSetup = !result.success || result.data === null || result.data === undefined;
-
-        setProfileComplete(isSetup);
-
-        if (hasNeverSetup) {
-          console.log('[HomeScreen] Medical ID profile setup never done. Launching forced onboarding.');
-          nav.navigate('MedicalID', { isForceOnboarding: true });
-        }
-      }
-      void checkMedicalId();
+      void refreshContacts();
+      void refreshRides();
     }
-  }, [isFocused]);
+  }, [isFocused, refreshContacts, refreshRides]);
 
   const currentRide  = state.currentRide;
   const rideStatus   = currentRide?.status ?? 'idle';
-  const contactCount = mockContacts.length;
-  const recentRides  = mockRideHistory.slice(0, 3);
+  const contactCount = contactsData ? contactsData.length : 0;
+  const rideCount    = ridesData ? ridesData.length : 0;
+  const recentRides  = ridesData ? ridesData.slice(0, 3) : [];
+  const incidentCount = ridesData ? ridesData.filter(r => r.crashDetected).length : 0;
 
   // Hero gradient — shifts with time of day
   const heroColors: [string, string, string] = isNight
@@ -313,9 +330,10 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
     ? [colors.bgElevated, colors.bgSecondary, colors.bgPrimary]
     : ['#FFFFFF', '#F8FAFC', '#F1F5F9'];
 
-  function handleRefresh(): void {
+  async function handleRefresh(): Promise<void> {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    await Promise.all([refreshContacts(), refreshRides()]);
+    setRefreshing(false);
   }
 
   return (
@@ -365,7 +383,7 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
                 style={[styles.avatar, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}
                 accessibilityLabel="Profile settings"
                 accessibilityRole="button"
-                onPress={() => props.navigation.navigate('Settings')}
+                onPress={() => props.navigation.navigate('Profile')}
               >
                 <Ionicons name="person" size={20} color={colors.iconSecondary} />
                 {/* Online indicator */}
@@ -402,7 +420,9 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
               {t('home.emergency')}
             </Text>
 
-            <FloatingSOSButton size="hero" onPress={() => nav.navigate('SOSConfirmation')} />
+            <FloatingSOSButton size="hero" onPress={() => {
+              nav.navigate('SOSConfirmation' as never);
+            }} />
 
             <View style={styles.sosMeta}>
               <Ionicons name="people-outline" size={13} color={colors.textTertiary} />
@@ -426,7 +446,7 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
               ]}
             >
               <TouchableOpacity
-                onPress={() => nav.navigate('MedicalID')}
+                onPress={() => nav.navigate('Profile')}
                 style={styles.warningBannerContent}
                 activeOpacity={0.8}
               >
@@ -509,7 +529,7 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
               }
             ]}
           >
-            <SafetyScoreCard />
+            <SafetyScoreCard rideCount={rideCount} contactCount={contactCount} incidentCount={incidentCount} />
           </Animated.View>
 
           {/* ── Activity timeline ───────────────────────────────────────── */}
@@ -521,14 +541,14 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
           >
             <View style={styles.sectionHeader}>
               <Text style={[textStyles.labelCaps, { color: colors.textTertiary }]}>
-                RECENT RIDES
+                {t('home.recentRides')}
               </Text>
               {recentRides.length > 0 && (
                 <TouchableOpacity
                   onPress={() => nav.navigate('RideHistory')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={[textStyles.labelMedium, { color: colors.accent }]}>See all</Text>
+                  <Text style={[textStyles.labelMedium, { color: colors.accent }]}>{t('home.seeAll')}</Text>
                 </TouchableOpacity>
               )}
             </View>

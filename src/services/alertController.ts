@@ -23,6 +23,7 @@ export const AlertController = {
         staysActiveInBackground: true,
       });
       const { sound: s } = await Audio.Sound.createAsync(
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         require('../assets/sounds/alarm.mp3'),
         { isLooping: true, shouldPlay: true, volume: MAX_ALERT_VOLUME, isMuted: false },
       );

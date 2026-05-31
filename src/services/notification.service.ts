@@ -39,6 +39,8 @@ export interface NotificationPayload {
   data?: Record<string, unknown>;
 }
 
+const scheduled = new Map<string, ReturnType<typeof setTimeout>>();
+
 export const NotificationService = {
 
   /** Whether push permissions have been granted */
@@ -53,7 +55,6 @@ export const NotificationService = {
    *   return status === 'granted';
    */
   async requestPermissions(): Promise<boolean> {
-    console.warn('[NotificationService] requestPermissions() — mock. Wire expo-notifications here.');
     NotificationService.isPermissionGranted = true; // mock approval
     return true;
   },
@@ -69,11 +70,20 @@ export const NotificationService = {
    */
   async schedule(
     payload: NotificationPayload,
-    _delaySeconds = 0,
+    delaySeconds = 0,
   ): Promise<string> {
-    console.warn('[NotificationService] schedule() — mock:', payload.type);
-    // Return a mock notification ID
-    return `mock-notif-${Date.now()}`;
+    const notificationId = `local-notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const fire = () => {
+      console.log('[NotificationService] Notification fired:', payload.type, payload.title);
+      scheduled.delete(notificationId);
+    };
+    if (delaySeconds > 0) {
+      const timeout = setTimeout(fire, delaySeconds * 1000);
+      scheduled.set(notificationId, timeout);
+    } else {
+      fire();
+    }
+    return notificationId;
   },
 
   /**
@@ -82,8 +92,11 @@ export const NotificationService = {
    * TODO: await Notifications.cancelScheduledNotificationAsync(notifId);
    */
   async cancel(notifId: string): Promise<void> {
-    console.warn('[NotificationService] cancel():', notifId);
-    // TODO: await Notifications.cancelScheduledNotificationAsync(notifId);
+    const timeout = scheduled.get(notifId);
+    if (timeout) {
+      clearTimeout(timeout);
+      scheduled.delete(notifId);
+    }
   },
 
   /**
@@ -120,7 +133,6 @@ export const NotificationService = {
    *   return token.data;
    */
   async getPushToken(): Promise<string | null> {
-    console.warn('[NotificationService] getPushToken() — mock. Wire expo-notifications here.');
     return null;
   },
 };

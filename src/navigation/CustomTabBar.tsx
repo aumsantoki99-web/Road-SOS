@@ -99,15 +99,7 @@ function TabItem({
     >
       <Animated.View style={[styles.tabItemInner, { transform: [{ scale }] }]}>
         {/* Icon */}
-        <Ionicons name={iconName} size={22} color={iconColor} />
-
-        {/* Label — visible only when active */}
-        <Animated.Text
-          style={[textStyles.labelMedium, styles.tabLabel, { color: colors.tabBarActive, opacity: labelOpacity }]}
-          numberOfLines={1}
-        >
-          {t(config.labelKey)}
-        </Animated.Text>
+        <Ionicons name={iconName} size={28} color={iconColor} />
 
         {/* Animated pill indicator */}
         <Animated.View
@@ -216,12 +208,9 @@ const styles = StyleSheet.create({
   },
   tabItemInner: {
     alignItems: 'center',
-    gap: 3,
+    justifyContent: 'center',
   },
-  tabLabel: {
-    fontSize: 10,
-    letterSpacing: 0.2,
-  },
+
   activePill: {
     width: 28,
     height: 3,

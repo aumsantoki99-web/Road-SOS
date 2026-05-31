@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View, Animated, Easing } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View, Animated, Easing, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { AlertController } from '../../services/alertController';
@@ -9,14 +9,16 @@ import { textStyles } from '../../theme/typography';
 import { spacing, radius } from '../../theme/spacing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppState } from '../../context/AppStateContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DeadManSwitch'>;
-
-const INITIAL_SECONDS = 30;
 
 export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Element {
   const { event } = route.params;
   const { colors } = useTheme();
+  const { state: appState } = useAppState();
+  
+  const INITIAL_SECONDS = 30; // Hardcoded to 30s for conscious check as requested
   const [seconds, setSeconds] = useState(INITIAL_SECONDS);
   const [handled, setHandled] = useState(false);
 
@@ -113,13 +115,10 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
     console.log('[DeadManSwitch] Timer expired! Dispatching emergency services...');
     
     // Trigger the real emergency dialing and contact alert messages
-    const result = await SosService.triggerSOS(event, 'dead_man_switch_timeout');
+    await SosService.triggerSOS(event, 'dead_man_switch_timeout');
     
-    // Switch to triggered screen
-    navigation.replace('SosTriggered', { 
-      event, 
-      sosMessage: result.message 
-    });
+    Alert.alert('SOS Dispatched', 'Emergency contacts have been notified and calls have been forwarded.');
+    navigation.goBack();
   };
 
   return (
@@ -133,7 +132,7 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
         <View style={styles.iconContainer}>
           <Animated.View style={[styles.glowRing, { transform: [{ scale: pulseAnim }], borderColor: colors.warning }]} />
           <View style={[styles.warningBadge, { backgroundColor: colors.warning }]}>
-            <Ionicons name="alert-circle" size={36} color="#FFFFFF" />
+            <Ionicons name="alert-circle" size={36} color={colors.white} />
           </View>
         </View>
 
@@ -163,7 +162,7 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
             ]}
             onPress={onYesImFine}
           >
-            <Ionicons name="checkmark-circle" size={26} color="#FFFFFF" style={{ marginRight: spacing[2] }} />
+            <Ionicons name="checkmark-circle" size={26} color={colors.white} style={{ marginRight: spacing[2] }} />
             <Text style={styles.yesBtnText}>YES, I'M OKAY</Text>
           </Pressable>
           

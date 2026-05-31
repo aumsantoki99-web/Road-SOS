@@ -15,6 +15,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { spacing, radius, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
@@ -27,6 +28,7 @@ interface RecentRideCardProps {
 
 export function RecentRideCard({ ride }: RecentRideCardProps): React.JSX.Element {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const isSafe = !ride.crashDetected;
   const durationSeconds = ride.endTime
@@ -67,7 +69,7 @@ export function RecentRideCard({ ride }: RecentRideCardProps): React.JSX.Element
         <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: 2 }]}>
           {timeAgo(ride.startTime)}
           {ride.avgSpeedKmh !== undefined
-            ? `  ·  Avg ${Math.round(ride.avgSpeedKmh)} km/h`
+            ? `  ·  ${t('home.avgSpeed')} ${Math.round(ride.avgSpeedKmh)} km/h`
             : ''}
         </Text>
       </View>
@@ -75,7 +77,7 @@ export function RecentRideCard({ ride }: RecentRideCardProps): React.JSX.Element
       {/* Badge */}
       <View style={[styles.badge, { backgroundColor: badgeBgColor }]}>
         <Text style={[textStyles.caption, { color: badgeText, fontWeight: '800' }]}>
-          {isSafe ? 'SAFE' : 'CRASH'}
+          {isSafe ? t('home.safeStatus') : t('home.crashStatus')}
         </Text>
       </View>
     </View>

@@ -53,13 +53,18 @@ export type RootStackParamList = {
   /** Modal: In-app emergency turn-by-turn navigation */
   InAppNavigation: { hospitalId: string };
 
-  /** Modal: Medical ID setup & editing */
-  MedicalID: { isForceOnboarding?: boolean } | undefined;
+
+  /** Screen: User Profile view */
+  Profile: undefined;
 
   /** Teammate SOS integration routes */
   CrashCountdown: { event: import('../services/crashDetection.service').CrashEvent };
   DeadManSwitch: { event: import('../services/crashDetection.service').CrashEvent };
   SosTriggered: { event: import('../services/crashDetection.service').CrashEvent; sosMessage?: string };
+
+  /** Legal Screens */
+  PrivacyPolicy: undefined;
+  TermsConditions: undefined;
 
   // ── Future auth flow (uncomment when auth branch begins) ──────────────────
   // Onboarding: undefined;

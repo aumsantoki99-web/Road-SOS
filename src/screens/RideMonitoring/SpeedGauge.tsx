@@ -206,12 +206,6 @@ export function SpeedGauge({
         </Text>
       </Animated.View>
 
-      {/* Mock GPS note — subtle */}
-      {isActive && (
-        <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: spacing[1] }]}>
-          Mock GPS · Connect expo-location
-        </Text>
-      )}
     </View>
   );
 }

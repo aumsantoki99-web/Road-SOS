@@ -29,12 +29,13 @@ import React, {
   type ReactNode,
 } from 'react';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { darkColors, lightColors, nightColors, type ColorTokens } from '../theme/colors';
 import type { ThemeMode } from '../types';
+import { StorageService } from '../storage/StorageService';
+import { STORAGE_KEYS } from '../constants';
 
-const THEME_STORAGE_KEY = '@ridesafe/theme_mode';
+const THEME_STORAGE_KEY = STORAGE_KEYS.THEME_MODE;
 const NIGHT_START_HOUR = 19;
 const NIGHT_END_HOUR   = 6;
 
@@ -66,7 +67,8 @@ export function ThemeProvider({ children }: { children: ReactNode }): React.JSX.
   useEffect(() => {
     async function load(): Promise<void> {
       try {
-        const stored = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        const result = await StorageService.get<string>(THEME_STORAGE_KEY);
+        const stored = result.success ? result.data : null;
         if (stored === 'light' || stored === 'dark' || stored === 'system' || stored === 'auto') {
           setThemeModeState(stored);
         }
@@ -111,7 +113,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): React.JSX.
   const setThemeMode = useCallback(async (mode: ThemeMode): Promise<void> => {
     setThemeModeState(mode);
     try {
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
+      await StorageService.set(THEME_STORAGE_KEY, mode);
     } catch {
       console.warn('[ThemeContext] Could not persist theme preference');
     }

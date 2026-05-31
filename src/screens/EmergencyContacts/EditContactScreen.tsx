@@ -22,19 +22,55 @@ import { spacing, layout } from '../../theme/spacing';
 import type { ContactFormValues } from '../../hooks/useContactForm';
 import type { EditContactScreenProps } from '../../navigation/types';
 
+function EditContactFormInner({ contact }: { contact: any }): React.JSX.Element {
+  const { colors } = useTheme();
+  const nav = useAppNavigation();
+  const { editContact } = useContacts();
+
+  const form = useContactForm({
+    name: contact.name,
+    phone: contact.phone,
+    relationship: contact.relationship,
+  });
+
+  async function handleSubmit(values: ContactFormValues): Promise<void> {
+    await editContact(contact.id, values);
+    nav.goBack();
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgSecondary }} edges={['top', 'bottom']}>
+      <ContactFormSheet
+        form={form}
+        title="Edit Contact"
+        submitLabel="Save Changes"
+        onSubmit={handleSubmit}
+        onCancel={() => nav.goBack()}
+      />
+    </SafeAreaView>
+  );
+}
+
 export function EditContactScreen({ route }: EditContactScreenProps): React.JSX.Element {
   const { colors } = useTheme();
   const nav = useAppNavigation();
-  const { contacts, editContact } = useContacts();
+  const { contacts, isLoading } = useContacts();
   const { contactId } = route.params;
 
-  const contact = contacts.find((c) => c.id === contactId);
+  // Wait for contacts to load
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.root, { backgroundColor: colors.bgSecondary }]} edges={['top']}>
+        <View style={styles.errorState}>
+          <Text style={[textStyles.bodyMedium, { color: colors.textSecondary }]}>
+            Loading contact...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  const form = useContactForm(
-    contact
-      ? { name: contact.name, phone: contact.phone, relationship: contact.relationship }
-      : {},
-  );
+  const contact = contacts.find((c) => c.id === contactId);
 
   // Contact not found — edge case
   if (!contact) {
@@ -55,22 +91,7 @@ export function EditContactScreen({ route }: EditContactScreenProps): React.JSX.
     );
   }
 
-  async function handleSubmit(values: ContactFormValues): Promise<void> {
-    await editContact(contactId, values);
-    nav.goBack();
-  }
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgSecondary }} edges={['top', 'bottom']}>
-      <ContactFormSheet
-        form={form}
-        title="Edit Contact"
-        submitLabel="Save Changes"
-        onSubmit={handleSubmit}
-        onCancel={() => nav.goBack()}
-      />
-    </SafeAreaView>
-  );
+  return <EditContactFormInner contact={contact} />;
 }
 
 const styles = StyleSheet.create({

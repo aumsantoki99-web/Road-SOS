@@ -1,8 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 
 import { EMERGENCY_DATABASE_SERVER, STORAGE_KEYS } from '../constants';
 import type { EmergencyPlace, EmergencyPlaceType } from '../types';
+import { StorageService } from '../storage/StorageService';
+import { requestJson } from './apiClient';
 
 const SYNC_DISTANCE_THRESHOLD_KM = 20;
 
@@ -84,18 +85,16 @@ export function calculateDistance(
 }
 
 async function getCachePayload(): Promise<EmergencyPlacesCachePayload | null> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.EMERGENCY_PLACES_CACHE);
-    if (!raw) return null;
-    return JSON.parse(raw) as EmergencyPlacesCachePayload;
-  } catch (error) {
-    console.warn('[EmergencyDatabaseService] Failed to parse cache payload:', error);
+  const result = await StorageService.get<EmergencyPlacesCachePayload>(STORAGE_KEYS.EMERGENCY_PLACES_CACHE);
+  if (!result.success) {
+    console.warn('[EmergencyDatabaseService] Failed to load cache payload:', result.error);
     return null;
   }
+  return result.data;
 }
 
 async function setCachePayload(payload: EmergencyPlacesCachePayload): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_PLACES_CACHE, JSON.stringify(payload));
+  await StorageService.set(STORAGE_KEYS.EMERGENCY_PLACES_CACHE, payload);
 }
 
 export async function getCachedEmergencyPlaces(): Promise<EmergencyPlace[]> {
@@ -145,12 +144,14 @@ export async function syncEmergencyDatabaseIfNeeded(
 
     if (!shouldSync) return false;
 
-    const response = await fetch(
+    const result = await requestJson<SyncEmergencyResponse>(
       `${EMERGENCY_DATABASE_SERVER}/sync-emergency?lat=${currentLat}&lng=${currentLng}`,
+      {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+        },
+      },
     );
-    if (!response.ok) return false;
-
-    const result = (await response.json()) as SyncEmergencyResponse;
     if (!result.success || !Array.isArray(result.places)) return false;
 
     const places = result.places

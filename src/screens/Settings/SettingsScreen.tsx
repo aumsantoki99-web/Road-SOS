@@ -12,18 +12,18 @@
  *   - Entrance animation on scroll content
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   Alert,
   TouchableOpacity,
   Animated,
+  Linking,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
@@ -32,6 +32,7 @@ import { useTranslation } from '../../context/LocalizationContext';
 import { useStorage } from '../../hooks/useStorage';
 import { StorageService } from '../../storage/StorageService';
 import { LanguageSelectionModal } from '../../components/common/LanguageSelectionModal';
+import { SosDelayModal } from '../../components/common/SosDelayModal';
 
 import { SettingRow } from '../../components/common/SettingRow';
 import { CustomButton } from '../../components/common/CustomButton';
@@ -40,7 +41,7 @@ import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
 import { textStyles } from '../../theme/typography';
 import { shadows } from '../../theme/shadows';
 import { STORAGE_KEYS, APP_VERSION, DEFAULT_PREFERENCES } from '../../constants';
-import type { ThemeMode, CrashSensitivity, UserPreferences, AppLanguage } from '../../types';
+import type { ThemeMode, CrashSensitivity, UserPreferences, AppLanguage, MedicalProfile } from '../../types';
 import type { SettingsScreenProps } from '../../navigation/types';
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -235,6 +236,8 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
   const [isResetting, setResetting] = useState(false);
   const [bloodGroup, setBloodGroup] = useState<string>('');
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
+  const [isDelayModalVisible, setIsDelayModalVisible] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
@@ -247,8 +250,8 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
   }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
-    async function loadBloodGroup() {
-      const result = await StorageService.get<any>(STORAGE_KEYS.MEDICAL_PROFILE);
+    async function loadBloodGroup(): Promise<void> {
+      const result = await StorageService.get<MedicalProfile>(STORAGE_KEYS.MEDICAL_PROFILE);
       if (result.success && result.data?.bloodGroup) {
         setBloodGroup(result.data.bloodGroup);
       } else {
@@ -268,12 +271,24 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
     DEFAULT_PREFERENCES,
   );
 
+  const updatePref = useCallback(
+    async <K extends keyof UserPreferences>(
+      key: K,
+      value: UserPreferences[K],
+    ): Promise<void> => {
+      const updated = { ...prefs, [key]: value };
+      await savePrefs(updated);
+      updatePreferences({ [key]: value });
+    },
+    [prefs, savePrefs, updatePreferences],
+  );
+
   // Sync preferences state with context language dynamically to prevent stale overwrites
   useEffect(() => {
     if (!isLoading && prefs && prefs.language !== language) {
       void updatePref('language', language);
     }
-  }, [language, prefs?.language, isLoading]);
+  }, [language, prefs, isLoading, updatePref]);
 
   const languageOptions: { value: AppLanguage; label: string }[] = [
     { value: 'en', label: t('settings.languageEnglish') },
@@ -295,36 +310,20 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
     { value: 'zh', label: t('settings.languageChinese') },
   ];
 
-  async function updatePref<K extends keyof UserPreferences>(
-    key: K,
-    value: UserPreferences[K],
-  ): Promise<void> {
-    const updated = { ...prefs, [key]: value };
-    await savePrefs(updated);
-    updatePreferences({ [key]: value });
-  }
 
   function handleReset(): void {
-    Alert.alert(
-      t('settings.resetAlertTitle'),
-      t('settings.resetAlertBody'),
-      [
-        { text: t('settings.cancel'), style: 'cancel' },
-        {
-          text: t('settings.resetEverything'),
-          style: 'destructive',
-          onPress: async () => {
-            setResetting(true);
-            await StorageService.clear();
-            await savePrefs(DEFAULT_PREFERENCES);
-            updatePreferences(DEFAULT_PREFERENCES);
-            await setLanguage(DEFAULT_PREFERENCES.language);
-            setResetting(false);
-            Alert.alert(t('settings.done'), t('settings.resetDone'));
-          },
-        },
-      ],
-    );
+    setShowResetModal(true);
+  }
+
+  async function executeReset(): Promise<void> {
+    setResetting(true);
+    await StorageService.clear();
+    await savePrefs(DEFAULT_PREFERENCES);
+    updatePreferences(DEFAULT_PREFERENCES);
+    await setLanguage(DEFAULT_PREFERENCES.language);
+    setResetting(false);
+    setShowResetModal(false);
+    Alert.alert(t('settings.done'), t('settings.resetDone'));
   }
 
   return (
@@ -366,13 +365,27 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
             />
           </SettingsSection>
 
+          {/* ── Account ─────────────────────────────────────────────────── */}
+          <SettingsSection title="Account">
+            <SettingRow
+              label="My Profile"
+              description="View your account details and medical info"
+              icon="person-circle-outline"
+              iconColor={colors.accent}
+              control="value"
+              valueText="View"
+              onPress={() => navigation.navigate('Profile')}
+              showDivider={false}
+            />
+          </SettingsSection>
+
           {/* ── Safety ────────────────────────────────────────────────── */}
           <SettingsSection title={t('settings.safety')}>
             <Text style={[textStyles.labelMedium, { color: colors.textSecondary, marginBottom: spacing[3] }]}>
               {t('settings.crashSensitivity')}
             </Text>
             <SensitivityControl
-              value={prefs.crashSensitivity}
+              value={(prefs.crashSensitivity?.toLowerCase() as CrashSensitivity) || 'medium'}
               onChange={(v) => void updatePref('crashSensitivity', v)}
             />
             <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: spacing[2], marginBottom: spacing[5] }]}>
@@ -387,18 +400,8 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
               icon="timer-outline"
               iconColor={colors.emergency}
               control="value"
-              valueText="10 sec"
-              onPress={() => Alert.alert('SOS Delay', 'Configurable delay coming in a future update.')}
-              showDivider
-            />
-            <SettingRow
-              label={t('settings.medicalId')}
-              description={t('settings.medicalIdDesc')}
-              icon="heart-half-sharp"
-              iconColor={colors.emergency}
-              control="value"
-              valueText={bloodGroup ? `Blood: ${bloodGroup}` : 'Tap to Setup'}
-              onPress={() => navigation.navigate('MedicalID', { isForceOnboarding: false })}
+              valueText={`${prefs.sosDelay} sec`}
+              onPress={() => setIsDelayModalVisible(true)}
               showDivider
             />
             <SettingRow
@@ -421,7 +424,7 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
               icon="speedometer-outline"
               iconColor={colors.accent}
               control="toggle"
-              toggleValue={prefs.rideAutoStart}
+              toggleValue={!!prefs.rideAutoStart}
               onToggle={(v) => void updatePref('rideAutoStart', v)}
               showDivider
             />
@@ -433,29 +436,6 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
               control="toggle"
               toggleValue={prefs.offlineModeEnabled}
               onToggle={(v) => void updatePref('offlineModeEnabled', v)}
-              showDivider={false}
-            />
-          </SettingsSection>
-
-          {/* ── Notifications ─────────────────────────────────────────── */}
-          <SettingsSection title={t('settings.notifications')}>
-            <SettingRow
-              label={t('settings.pushNotifications')}
-              description={t('settings.pushNotificationsDescription')}
-              icon="notifications-outline"
-              iconColor="#8B5CF6"
-              control="toggle"
-              toggleValue={prefs.notificationsEnabled}
-              onToggle={(v) => void updatePref('notificationsEnabled', v)}
-              showDivider
-            />
-            <SettingRow
-              label={t('settings.openDeviceSettings')}
-              description={t('settings.openDeviceSettingsDescription')}
-              icon="settings-outline"
-              iconColor={colors.textTertiary}
-              control="chevron"
-              onPress={() => Alert.alert('Device Settings', 'Open device settings to manage notifications.')}
               showDivider={false}
             />
           </SettingsSection>
@@ -479,10 +459,26 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
               showDivider
             />
             <SettingRow
+              label="Privacy Policy"
+              icon="shield-checkmark-outline"
+              iconColor={colors.safe}
+              control="chevron"
+              onPress={() => navigation.navigate('PrivacyPolicy' as never)}
+              showDivider
+            />
+            <SettingRow
+              label="Terms & Conditions"
+              icon="document-text-outline"
+              iconColor={colors.textTertiary}
+              control="chevron"
+              onPress={() => navigation.navigate('TermsConditions' as never)}
+              showDivider
+            />
+            <SettingRow
               label={t('settings.architecture')}
               description={t('settings.architectureDescription')}
               icon="construct-outline"
-              iconColor={colors.safe}
+              iconColor={colors.emergency}
               control="none"
               showDivider={false}
             />
@@ -512,11 +508,11 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={[textStyles.caption, { color: colors.textTertiary }]}>
-              RideSafe · Built with Expo SDK 54
+            <Text style={[textStyles.caption, { color: colors.textSecondary, fontWeight: '600', marginBottom: spacing[1] }]}>
+              Made with ❤️ by Team Neurobyte
             </Text>
-            <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: spacing[1] }]}>
-              React Native · TypeScript Strict · Offline-First
+            <Text style={[textStyles.caption, { color: colors.textTertiary }]}>
+              © {new Date().getFullYear()} Team Neurobyte. All rights reserved.
             </Text>
           </View>
 
@@ -527,6 +523,35 @@ export function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.E
         visible={isLanguageModalVisible}
         onClose={() => setIsLanguageModalVisible(false)}
       />
+      <SosDelayModal
+        visible={isDelayModalVisible}
+        onClose={() => setIsDelayModalVisible(false)}
+        currentDelay={prefs.sosDelay}
+        onSelect={(delay) => void updatePref('sosDelay', delay)}
+      />
+
+      {/* ── RESET DATA MODAL ── */}
+      <Modal visible={showResetModal} transparent animationType="fade" onRequestClose={() => setShowResetModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surfacePrimary }]}>
+            <View style={styles.modalHeaderCentered}>
+              <Ionicons name="warning" size={56} color={colors.emergency} />
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('settings.resetAlertTitle')}</Text>
+            </View>
+            <Text style={[styles.modalBodyText, { color: colors.textSecondary }]}>
+              {t('settings.resetAlertBody')}
+            </Text>
+            <View style={styles.modalButtonsRow}>
+              <View style={{ flex: 1 }}>
+                <CustomButton label={t('settings.cancel')} onPress={() => setShowResetModal(false)} variant="secondary" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <CustomButton label={t('settings.resetEverything')} onPress={executeReset} variant="danger" loading={isResetting} />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -642,5 +667,48 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     paddingVertical: spacing[6],
+  },
+  
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeaderCentered: {
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    textAlign: 'center',
+  },
+  modalBodyText: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
   },
 });

@@ -18,10 +18,10 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateId } from '../utils';
 import { STORAGE_KEYS } from '../constants';
 import type { EmergencyContact } from '../types';
+import { StorageService } from '../storage/StorageService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,13 +41,12 @@ interface ContactsResult {
 // ─── Persistence helpers ──────────────────────────────────────────────────────
 
 async function loadFromStorage(): Promise<EmergencyContact[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEYS.CONTACTS);
-  if (!raw) return [];
-  return JSON.parse(raw) as EmergencyContact[];
+  const result = await StorageService.get<EmergencyContact[]>(STORAGE_KEYS.CONTACTS);
+  return result.success && result.data ? result.data : [];
 }
 
 async function saveToStorage(contacts: EmergencyContact[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.CONTACTS, JSON.stringify(contacts));
+  await StorageService.set(STORAGE_KEYS.CONTACTS, contacts);
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -62,7 +61,11 @@ export function useContacts(): ContactsResult {
     setIsLoading(true);
     setError(null);
     try {
-      const loaded = await loadFromStorage();
+      // Artificial delay to ensure the smooth skeleton animation is visible
+      const [loaded] = await Promise.all([
+        loadFromStorage(),
+        new Promise((resolve) => setTimeout(resolve, 600)),
+      ]);
       setContacts(loaded);
     } catch {
       setError('Could not load contacts. Please try again.');

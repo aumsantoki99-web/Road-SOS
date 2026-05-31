@@ -9,15 +9,17 @@ import { spacing, radius } from '../../theme/spacing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '../../context/LocalizationContext';
+import { useAppState } from '../../context/AppStateContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CrashCountdown'>;
-
-const INITIAL_SECONDS = 10;
 
 export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.Element {
   const { event } = route.params;
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const { state: appState } = useAppState();
+  
+  const INITIAL_SECONDS = appState.preferences.sosDelay;
   const [seconds, setSeconds] = useState(INITIAL_SECONDS);
   const [handled, setHandled] = useState(false);
 
@@ -98,7 +100,7 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: '#09090C' }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
       <LinearGradient
         colors={['rgba(211,47,47,0.15)', 'transparent']}
         style={styles.headerGradient}
@@ -108,24 +110,24 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
         <View style={styles.iconContainer}>
           <Animated.View style={[styles.glowRing, { transform: [{ scale: pulseAnim }], borderColor: colors.emergency }]} />
           <View style={[styles.warningBadge, { backgroundColor: colors.emergency }]}>
-            <Ionicons name="warning" size={32} color="#FFFFFF" />
+            <Ionicons name="warning" size={32} color={colors.white} />
           </View>
         </View>
 
-        <Text style={[textStyles.displayMedium, styles.heading]}>
+        <Text style={[textStyles.displayMedium, styles.heading, { color: colors.textPrimary }]}>
           {t('crash.impactDetected')}
         </Text>
-        <Text style={[textStyles.bodyLarge, styles.subheading]}>
+        <Text style={[textStyles.bodyLarge, styles.subheading, { color: colors.textSecondary }]}>
           {t('crash.areYouOkay')}
         </Text>
 
         {/* Custom Premium Countdown Progress Ring */}
         <View style={styles.countdownContainer}>
-          <View style={[styles.ringTrack, { borderColor: 'rgba(255,255,255,0.06)' }]} />
+          <View style={[styles.ringTrack, { borderColor: colors.surfaceBorder }]} />
           <Animated.View style={[styles.ringProgress, { borderColor: colors.emergency, opacity: progressAnim }]} />
-          <View style={styles.ringInner}>
-            <Text style={styles.counterText}>{seconds}</Text>
-            <Text style={styles.secLabel}>{t('crash.seconds')}</Text>
+          <View style={[styles.ringInner, { backgroundColor: colors.surfaceSecondary }]}>
+            <Text style={[styles.counterText, { color: colors.textPrimary }]}>{seconds}</Text>
+            <Text style={[styles.secLabel, { color: colors.textTertiary }]}>{t('crash.seconds')}</Text>
           </View>
         </View>
 
@@ -139,10 +141,10 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
             accessibilityRole="button"
             accessibilityLabel="I'm okay, cancel SOS"
           >
-            <Ionicons name="checkmark-circle-outline" size={24} color="#FFFFFF" style={{ marginRight: spacing[2] }} />
+            <Ionicons name="checkmark-circle-outline" size={24} color={colors.white} style={{ marginRight: spacing[2] }} />
             <Text style={styles.cancelBtnText}>{t('crash.imOkay')}</Text>
           </Pressable>
-          <Text style={styles.infoNote}>
+          <Text style={[styles.infoNote, { color: colors.textTertiary }]}>
             {t('crash.autoAlert')}
           </Text>
         </View>

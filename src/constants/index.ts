@@ -7,9 +7,9 @@
 
 // ─── App Identity ────────────────────────────────────────────────────────────
 
-export const APP_NAME = 'RideSafe';
+export const APP_NAME = 'Rescuel';
 export const APP_VERSION = '1.0.0';
-export const APP_TAGLINE = 'Your smart rider safety companion';
+export const APP_TAGLINE = 'Your ride partner';
 
 // ─── Storage Keys ────────────────────────────────────────────────────────────
 // Centralized to avoid typos and key collisions
@@ -19,6 +19,7 @@ export const STORAGE_KEYS = {
   PREFERENCES: '@ridesafe/user_preferences',
   RIDE_HISTORY: '@ridesafe/ride_history',
   CURRENT_RIDE: '@ridesafe/current_ride',
+  LAST_RIDE: '@ridesafe/last_ride',
   ALERT_QUEUE: '@ridesafe/alert_queue',
   EMERGENCY_PLACES_CACHE: '@emergency_places_cache',
   PENDING_EMERGENCY_EVENTS: '@pending_emergency_events',
@@ -30,6 +31,8 @@ export const STORAGE_KEYS = {
   AUTH_SESSION: '@ridesafe/auth_session',
   AUTH_PROFILE: '@ridesafe/auth_profile',
   LANGUAGE_SELECTED_ONBOARDING: '@ridesafe/language_selected_onboarding',
+  THEME_MODE: '@ridesafe/theme_mode',
+  STORAGE_SCHEMA_VERSION: '@ridesafe/storage_schema_version',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
@@ -37,12 +40,20 @@ export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
 // ─── Emergency Server ────────────────────────────────────────────────────────
 
 export const EMERGENCY_SERVER = {
-  DEFAULT_URL: 'https://dc7231703de60bc1-49-36-89-0.serveousercontent.com',
+  DEFAULT_URL: 'https://rescuel-emergency-server.onrender.com',
   DEFAULT_VOICE_TARGET: '+919314050474',
   DEFAULT_HELPER_SMS: '+917359129704',
 } as const;
 
 export const EMERGENCY_DATABASE_SERVER = 'https://road-sos-flax.vercel.app';
+
+export const NETWORK_CONSTANTS = {
+  REQUEST_TIMEOUT_MS: 12000,
+  RETRY_COUNT: 2,
+  BACKOFF_BASE_MS: 700,
+} as const;
+
+export const APP_STORAGE_SCHEMA_VERSION = 2;
 
 // ─── Default Preferences ────────────────────────────────────────────────────
 
@@ -54,6 +65,7 @@ export const DEFAULT_PREFERENCES = {
   autoShareLocation: false,
   rideAutoStart: false,
   language: 'en' as const,
+  sosDelay: 10,
 };
 
 // ─── Ride ────────────────────────────────────────────────────────────────────

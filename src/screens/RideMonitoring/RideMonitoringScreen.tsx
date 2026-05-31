@@ -1,283 +1,50 @@
-/**
- * RideMonitoringScreen — Immersive Ride Experience
- * feature/ui-polish-ride ✅
- *
- * Redesigned as an immersive safety cockpit.
- * Feels like: a real-time safety dashboard from a premium vehicle app.
- *
- * Enhancements:
- *   - Full-bleed dark header with active ride gradient
- *   - Live-feel animated metrics row
- *   - Glowing "LIVE" indicator when ride is active
- *   - Crash detection card styled as a proper status module
- *   - Controls redesigned — primary action full-width, secondary inline
- *   - Ride summary slides up with spring animation
- */
-
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
-  Alert,
-  Animated,
   TouchableOpacity,
+  Animated,
+  SafeAreaView,
+  Image,
+  Alert,
+  Modal
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from '../../components/common/MapViewCompat';
 
 import { useTheme } from '../../context/ThemeContext';
+import { textStyles } from '../../theme/typography';
+import { useTranslation } from '../../context/LocalizationContext';
 import { useRideSession } from '../../hooks/useRideSession';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { useLiveLocation } from '../../hooks/useLiveLocation';
-
-import { AppHeader } from '../../components/common/AppHeader';
+import { pastelMapStyle } from '../../constants/mapStyle';
+import { formatDuration } from '../../utils';
+import { StorageService } from '../../storage/StorageService';
+import { STORAGE_KEYS } from '../../constants';
+import type { RideSession } from '../../types';
 import { CustomButton } from '../../components/common/CustomButton';
-import { SpeedGauge } from './SpeedGauge';
-import { RideSummaryCard } from './RideSummaryCard';
-import { RideStartSequence } from './RideStartSequence';
 
-import { spacing, layout, radius, borderWidth } from '../../theme/spacing';
-import { textStyles } from '../../theme/typography';
-import { shadows } from '../../theme/shadows';
-import { formatDuration, formatDistance } from '../../utils';
-import { HospitalService } from '../../services';
-import type { RideSession, Hospital } from '../../types';
-import type { RideScreenProps } from '../../navigation/types';
-
-// ─── Live indicator ───────────────────────────────────────────────────────────
-
-function LiveIndicator({ isActive }: { isActive: boolean }): React.JSX.Element {
+export function RideMonitoringScreen(): React.JSX.Element {
   const { colors } = useTheme();
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (!isActive) { opacity.setValue(1); return; }
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.2, duration: 500, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1,   duration: 500, useNativeDriver: true }),
-      ]),
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [isActive, opacity]);
-
-  if (!isActive) return <></>;
-
-  return (
-    <View style={styles.liveIndicator}>
-      <Animated.View style={[styles.liveDot, { backgroundColor: colors.emergency, opacity }]} />
-      <Text style={[styles.liveText, { color: colors.emergency }]}>LIVE</Text>
-    </View>
-  );
-}
-
-// ─── Metric card ──────────────────────────────────────────────────────────────
-
-function MetricCard({
-  value,
-  unit,
-  label,
-  icon,
-  glowing,
-}: {
-  value: string;
-  unit?: string;
-  label: string;
-  icon: string;
-  glowing?: boolean;
-}): React.JSX.Element {
-  const { colors } = useTheme();
-  return (
-    <View
-      style={[
-        styles.metricCard,
-        {
-          backgroundColor: colors.surfacePrimary,
-          borderColor: glowing ? colors.safeMuted : colors.surfaceBorder,
-        },
-        glowing && shadows.glowSafe,
-      ]}
-    >
-      <Ionicons name={icon as 'time'} size={14} color={glowing ? colors.safe : colors.iconSecondary} />
-      <Text style={[textStyles.numericLarge, { color: colors.textPrimary, marginTop: spacing[2] }]}>
-        {value}
-        {unit !== undefined && (
-          <Text style={[textStyles.caption, { color: colors.textTertiary }]}> {unit}</Text>
-        )}
-      </Text>
-      <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginTop: spacing[1] }]}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-// ─── Crash status module ──────────────────────────────────────────────────────
-
-function CrashStatusModule({
-  crashDetected,
-  peakGForce,
-  peakGyroRadS,
-  isActive,
-}: {
-  crashDetected: boolean;
-  peakGForce: number;
-  peakGyroRadS: number;
-  isActive: boolean;
-}): React.JSX.Element {
-  const { colors } = useTheme();
-  const checkScale = useRef(new Animated.Value(0)).current;
-  const alertPulse = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.spring(checkScale, { toValue: 1, useNativeDriver: true, speed: 8, bounciness: 12 }).start();
-  }, [checkScale]);
-
-  // Pulse when crash detected
-  useEffect(() => {
-    if (!crashDetected) return;
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(alertPulse, { toValue: 0.3, duration: 400, useNativeDriver: true }),
-        Animated.timing(alertPulse, { toValue: 1, duration: 400, useNativeDriver: true }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [crashDetected, alertPulse]);
-
-  const bgColor = crashDetected ? colors.emergencySubtle : isActive ? colors.safeSubtle : colors.surfaceSecondary;
-  const borderColor = crashDetected ? colors.emergencyBorder : isActive ? colors.safeMuted : colors.surfaceBorder;
-  const iconColor = crashDetected ? colors.emergency : colors.safe;
-  const iconName = crashDetected ? 'warning' : 'shield-checkmark';
-  const statusText = crashDetected
-    ? 'Impact Detected — SOS triggered'
-    : isActive
-    ? 'Monitoring · No incidents'
-    : 'Sensors ready';
-
-  return (
-    <View style={[styles.crashModule, { backgroundColor: bgColor, borderColor }]}>
-      <View style={styles.crashModuleLeft}>
-        <Animated.View
-          style={[
-            styles.crashCheckWrap,
-            { backgroundColor: iconColor, transform: [{ scale: checkScale }] },
-          ]}
-        >
-          <Animated.View style={{ opacity: crashDetected ? alertPulse : 1 }}>
-            <Ionicons name={iconName} size={20} color="#FFFFFF" />
-          </Animated.View>
-        </Animated.View>
-        <View style={{ flex: 1 }}>
-          <Text style={[textStyles.headingSmall, { color: colors.textPrimary }]}>
-            Crash Detection
-          </Text>
-          <Text style={[textStyles.caption, { color: colors.textTertiary, marginTop: 2 }]}>
-            {statusText}
-          </Text>
-        </View>
-      </View>
-
-      {/* Live sensor readings */}
-      {isActive && (
-        <View style={styles.sensorReadings}>
-          <View style={styles.sensorChip}>
-            <Text style={[textStyles.caption, { color: colors.textTertiary }]}>G</Text>
-            <Text style={[textStyles.labelMedium, { color: peakGForce >= 3 ? colors.emergency : colors.textPrimary }]}>
-              {peakGForce.toFixed(1)}
-            </Text>
-          </View>
-          <View style={[styles.sensorChip, { marginTop: spacing[1] }]}>
-            <Text style={[textStyles.caption, { color: colors.textTertiary }]}>ω</Text>
-            <Text style={[textStyles.labelMedium, { color: peakGyroRadS >= 3.5 ? colors.emergency : colors.textPrimary }]}>
-              {peakGyroRadS.toFixed(1)}
-            </Text>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
-
-// ─── Idle state hero ─────────────────────────────────────────────────────────
-
-function IdleHero({ onStart }: { onStart: () => void }): React.JSX.Element {
-  const { colors } = useTheme();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 600, delay: 100, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, delay: 100, useNativeDriver: true }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
-
-  return (
-    <Animated.View
-      style={[
-        styles.idleHero,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      {/* Central shield */}
-      <View style={[styles.idleShieldWrap, { backgroundColor: colors.surfaceSecondary }]}>
-        <LinearGradient
-          colors={[colors.surfaceSecondary, colors.surfacePrimary]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <Ionicons name="shield-outline" size={56} color={colors.textTertiary} />
-      </View>
-
-      <Text style={[textStyles.displaySmall, { color: colors.textPrimary, marginTop: spacing[5] }]}>
-        Ready to ride
-      </Text>
-      <Text style={[textStyles.bodyMedium, { color: colors.textTertiary, marginTop: spacing[2], textAlign: 'center', maxWidth: 240 }]}>
-        Start a ride to activate safety monitoring and crash detection
-      </Text>
-
-      <View style={{ marginTop: spacing[8], width: '100%' }}>
-        <CustomButton
-          label="Start Ride"
-          onPress={onStart}
-          variant="primary"
-          size="lg"
-          fullWidth
-          iconLeft="speedometer"
-        />
-      </View>
-    </Animated.View>
-  );
-}
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
-export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element {
-  const { colors, isDark } = useTheme();
+  const { t } = useTranslation();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   const nav = useRideSession();
   const navigation = useAppNavigation();
-  const [completedSession, setCompletedSession] = useState<RideSession | null>(null);
-  const [showStartSequence, setShowStartSequence] = useState(false);
-  const [viewMode, setViewMode] = useState<'cockpit' | 'map'>('cockpit');
   const { location: liveLoc } = useLiveLocation(nav.status === 'active');
   const [breadcrumbs, setBreadcrumbs] = useState<{ latitude: number; longitude: number }[]>([]);
-  const [nearbyHospitals, setNearbyHospitals] = useState<Hospital[]>([]);
+  const [viewMode, setViewMode] = useState<'cockpit' | 'map'>('cockpit');
+  const insets = useSafeAreaInsets();
+
+  const isActive = nav.status === 'active';
+  const crashDetected = nav.crashDetected;
 
   useEffect(() => {
-    if (nav.status !== 'active') {
-      setBreadcrumbs([]);
-      return;
-    }
+    if (!isActive) return;
     if (liveLoc) {
-      setBreadcrumbs((prev) => {
+      setBreadcrumbs(prev => {
         const last = prev[prev.length - 1];
         if (last && last.latitude === liveLoc.latitude && last.longitude === liveLoc.longitude) {
           return prev;
@@ -285,582 +52,663 @@ export function RideMonitoringScreen(_props: RideScreenProps): React.JSX.Element
         return [...prev, { latitude: liveLoc.latitude, longitude: liveLoc.longitude }];
       });
     }
-  }, [liveLoc, nav.status]);
+  }, [liveLoc, isActive]);
+
+  // For the bottom sheet animation
+  const slideAnim = useRef(new Animated.Value(300)).current;
 
   useEffect(() => {
-    if (liveLoc && nearbyHospitals.length === 0) {
-      HospitalService.getNearby({ latitude: liveLoc.latitude, longitude: liveLoc.longitude }, { maxResults: 5 })
-        .then(setNearbyHospitals)
-        .catch((err) => console.warn('[RideMonitoringScreen] Error loading hospitals:', err));
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      tension: 60,
+      friction: 12,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
+
+  // Handle back button
+  const handleBack = () => {
+    if (isActive) {
+      nav.pauseRide();
     }
-  }, [liveLoc]);
+    navigation.goBack();
+  };
 
-  const isIdle   = nav.status === 'idle';
-  const isActive = nav.status === 'active';
-  const isPaused = nav.status === 'paused';
+  const [lastRide, setLastRide] = useState<RideSession | null>(null);
+  const [showLastRideModal, setShowLastRideModal] = useState(false);
 
-  // Header gradient shifts with ride state
-  const headerGradient: [string, string] = isActive
-    ? [colors.safeSubtle, colors.bgPrimary]
-    : isPaused
-    ? [colors.warningSubtle, colors.bgPrimary]
-    : [colors.bgElevated, colors.bgPrimary];
+  const handleShowLastRide = async () => {
+    const res = await StorageService.get<RideSession>(STORAGE_KEYS.LAST_RIDE);
+    if (res.success && res.data) {
+      setLastRide(res.data);
+      setShowLastRideModal(true);
+    } else {
+      Alert.alert('No Ride History', 'You have not completed any rides yet.');
+    }
+  };
 
-  function handleStart(): void {
-    setCompletedSession(null);
-    setShowStartSequence(true);
-  }
+  // Mock progress steps based on ride duration
+  const getProgressStep = () => {
+    if (!isActive) return 0;
+    const elapsed = nav.elapsedSeconds;
+    if (elapsed < 10) return 0; // Ride Started
+    if (elapsed < 60) return 1; // Monitoring Active
+    if (elapsed < 300) return 2; // On the Way
+    return 3; // Nearing Destination
+  };
 
-  function handleSequenceComplete(): void {
-    setShowStartSequence(false);
-    nav.startRide();
-  }
+  const currentStep = getProgressStep();
 
-  function handleStop(): void {
-    Alert.alert('End Ride', 'Are you sure you want to end this ride?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'End Ride',
-        style: 'destructive',
-        onPress: () => {
-          const session = nav.stopRide();
-          if (session) setCompletedSession(session);
-        },
-      },
-    ]);
-  }
+  const renderStep = (title: string, index: number, icon: string) => {
+    const isCompleted = currentStep >= index;
+    const isCurrent = currentStep === index;
+    
+    return (
+      <View key={index} style={styles.stepContainer}>
+        <View style={[
+          styles.stepIconWrap, 
+          isCompleted ? { backgroundColor: colors.safe } : { backgroundColor: colors.surfaceBorder },
+          isCurrent && { transform: [{ scale: 1.1 }] }
+        ]}>
+          <Ionicons name={icon as any} size={16} color={isCompleted ? '#FFF' : colors.textTertiary} />
+        </View>
+        <Text style={[
+          styles.stepText, 
+          isCompleted ? { color: colors.textPrimary } : { color: colors.textTertiary }
+        ]}>
+          {title}
+        </Text>
+      </View>
+    );
+  };
+
+  const steps = [
+    { title: 'Ride\nStarted', icon: 'checkmark' },
+    { title: 'Monitoring\nActive', icon: 'shield-checkmark' },
+    { title: 'On the\nWay', icon: 'bicycle' },
+    { title: 'Near\nDestination', icon: 'home' }
+  ];
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
-      {/* Gradient header band */}
-      <LinearGradient
-        colors={headerGradient}
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        pointerEvents="none"
-      />
+    <View style={styles.container}>
+      {/* ── MAP VIEW MODE ── */}
+      {viewMode === 'map' && (
+        <MapView
+          provider={PROVIDER_DEFAULT}
+          style={styles.map}
+          customMapStyle={pastelMapStyle}
+          showsCompass={false}
+          showsMyLocationButton={false}
+          initialRegion={{
+            latitude: liveLoc?.latitude ?? 23.0225,
+            longitude: liveLoc?.longitude ?? 72.5714,
+            latitudeDelta: 0.012,
+            longitudeDelta: 0.012,
+          }}
+          region={liveLoc ? {
+            latitude: liveLoc.latitude,
+            longitude: liveLoc.longitude,
+            latitudeDelta: 0.012,
+            longitudeDelta: 0.012,
+          } : undefined}
+        >
+          {/* Dynamic Route Line */}
+          {breadcrumbs.length > 1 && (
+            <Polyline
+              coordinates={breadcrumbs}
+              strokeColor="#39FF14" // Electric Lime Green!
+              strokeWidth={6}
+            />
+          )}
 
-      <RideStartSequence
-        visible={showStartSequence}
-        onComplete={handleSequenceComplete}
-      />
+          {/* Minimal User Location Marker */}
+          {liveLoc && (
+            <Marker
+              coordinate={{ latitude: liveLoc.latitude, longitude: liveLoc.longitude }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={999}
+            >
+              <View style={styles.userMarkerWrap}>
+                <View style={[styles.userMarkerGlow, { backgroundColor: 'rgba(57, 255, 20, 0.4)' }]} />
+                <View style={[styles.userMarkerCore, { backgroundColor: '#39FF14' }]} />
+              </View>
+            </Marker>
+          )}
+        </MapView>
+      )}
 
-      <AppHeader
-        title="Ride Monitor"
-        rightAction={{
-          icon: 'time-outline',
-          onPress: () => navigation.navigate('RideHistory'),
-          accessibilityLabel: 'View ride history',
-        }}
-      />
+      {/* ── TOP FLOATING HEADER (VISIBLE IN BOTH MODES) ── */}
+      <View style={[styles.topSafeArea, { paddingTop: insets.top + 10 }]} pointerEvents="box-none">
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={handleBack} style={styles.iconButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
+          
+          <View style={styles.segmentControl}>
+            <TouchableOpacity 
+              onPress={() => setViewMode('cockpit')} 
+              style={[styles.segmentBtn, viewMode === 'cockpit' && styles.segmentBtnActive]}
+            >
+              <Text style={[styles.segmentText, viewMode === 'cockpit' && styles.segmentTextActive]}>
+                Cockpit
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setViewMode('map')} 
+              style={[styles.segmentBtn, viewMode === 'map' && styles.segmentBtnActive]}
+            >
+              <Text style={[styles.segmentText, viewMode === 'map' && styles.segmentTextActive]}>
+                Map
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          <TouchableOpacity style={styles.iconButton} onPress={handleShowLastRide}>
+            <Ionicons name="ellipsis-vertical" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Status strip ─────────────────────────────────────────────── */}
-        {!isIdle && (
-          <View style={[
-            styles.statusStrip,
-            { backgroundColor: isActive ? colors.safeSubtle : colors.warningSubtle,
-              borderColor: isActive ? colors.safeMuted : colors.warningMuted },
-          ]}>
-            <View style={styles.statusStripLeft}>
-              <LiveIndicator isActive={isActive} />
-              {!isActive && (
-                <View style={styles.liveIndicator}>
-                  <View style={[styles.liveDot, { backgroundColor: colors.warning }]} />
-                  <Text style={[styles.liveText, { color: colors.warning }]}>PAUSED</Text>
-                </View>
-              )}
-              <Text style={[textStyles.bodySmall, { color: isActive ? colors.safeText : colors.warningText, marginLeft: spacing[2] }]}>
-                {isActive ? 'Safety monitoring active' : 'Monitoring paused'}
+        {viewMode === 'map' && (
+          <View style={styles.etaPill}>
+            <View style={styles.etaLeft}>
+              <Ionicons name="bicycle" size={18} color={colors.safe} />
+              <Text style={styles.etaText}>
+                Duration: {formatDuration(nav.elapsedSeconds)}
               </Text>
             </View>
+            <View style={styles.etaDivider} />
+            <Text style={styles.etaSubText}>On the way</Text>
+            <TouchableOpacity style={styles.refreshBtn}>
+              <Ionicons name="refresh" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
           </View>
         )}
+      </View>
 
-        {/* ── Idle hero ────────────────────────────────────────────────── */}
-        {isIdle && completedSession === null && (
-          <IdleHero onStart={handleStart} />
-        )}
+      {/* ── COCKPIT VIEW MODE ── */}
+      {viewMode === 'cockpit' && (
+        <View style={styles.cockpitContainer}>
+          
+          <View style={styles.statusBanner}>
+            <Ionicons 
+              name={isActive ? 'shield-checkmark' : 'bicycle'} 
+              size={32} 
+              color={isActive ? colors.safe : colors.textSecondary} 
+            />
+            <Text style={[styles.statusText, { color: isActive ? colors.safe : colors.textSecondary }]}>
+              {isActive ? t('home.rideActive') : t('home.readyToRide')}
+            </Text>
+          </View>
 
-        {/* ── Active / paused ride UI ──────────────────────────────────── */}
-        {!isIdle && (
-          <>
-            {/* View switcher segment control */}
-            <View style={[styles.toggleContainer, { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceBorder }]}>
-              <TouchableOpacity
-                onPress={() => setViewMode('cockpit')}
-                style={[
-                  styles.toggleButton,
-                  viewMode === 'cockpit' && { backgroundColor: colors.surfacePrimary },
-                ]}
-              >
-                <Ionicons
-                  name="speedometer-outline"
-                  size={16}
-                  color={viewMode === 'cockpit' ? colors.accent : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    textStyles.labelMedium,
-                    { color: viewMode === 'cockpit' ? colors.textPrimary : colors.textSecondary, marginLeft: spacing[1.5] }
-                  ]}
-                >
-                  Cockpit
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setViewMode('map')}
-                style={[
-                  styles.toggleButton,
-                  viewMode === 'map' && { backgroundColor: colors.surfacePrimary },
-                ]}
-              >
-                <Ionicons
-                  name="map-outline"
-                  size={16}
-                  color={viewMode === 'map' ? colors.accent : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    textStyles.labelMedium,
-                    { color: viewMode === 'map' ? colors.textPrimary : colors.textSecondary, marginLeft: spacing[1.5] }
-                  ]}
-                >
-                  Safety Map
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Gauge or Live Map Section */}
-            {viewMode === 'cockpit' ? (
-              <View style={styles.gaugeSection}>
-                <SpeedGauge
-                  speedKmh={nav.speedKmh}
-                  maxSpeedKmh={120}
-                  isActive={isActive}
-                />
-              </View>
-            ) : (
-              <View style={[styles.mapSection, { borderColor: colors.surfaceBorder }, shadows.sm]}>
-                <MapView
-                  provider={PROVIDER_DEFAULT}
-                  style={styles.rideMap}
-                  customMapStyle={isDark ? mapStyleDark : mapStyleLight}
-                  showsCompass={false}
-                  showsMyLocationButton={false}
-                  initialRegion={{
-                    latitude: liveLoc?.latitude ?? 23.0225,
-                    longitude: liveLoc?.longitude ?? 72.5714,
-                    latitudeDelta: 0.012,
-                    longitudeDelta: 0.012,
-                  }}
-                  region={liveLoc ? {
-                    latitude: liveLoc.latitude,
-                    longitude: liveLoc.longitude,
-                    latitudeDelta: 0.012,
-                    longitudeDelta: 0.012,
-                  } : undefined}
-                >
-                  {/* Breadcrumb journey path */}
-                  {breadcrumbs.length > 1 && (
-                    <Polyline
-                      coordinates={breadcrumbs}
-                      strokeColor={colors.accent}
-                      strokeWidth={4.5}
-                    />
-                  )}
-                  {breadcrumbs.length > 1 && (
-                    <Polyline
-                      coordinates={breadcrumbs}
-                      strokeColor={`${colors.accent}33`}
-                      strokeWidth={10}
-                    />
-                  )}
-
-                  {/* Dynamic user location direction marker */}
-                  {liveLoc && (
-                    <Marker
-                      coordinate={{ latitude: liveLoc.latitude, longitude: liveLoc.longitude }}
-                      flat
-                      anchor={{ x: 0.5, y: 0.5 }}
-                    >
-                      <View style={styles.markerAnchorWrap}>
-                        <View style={[styles.userPulseCircle, { borderColor: colors.accent }]} />
-                        <View
-                          style={[
-                            styles.userDirectionArrow,
-                            {
-                              backgroundColor: colors.accent,
-                              transform: [{ rotate: `${liveLoc.heading ?? 0}deg` }],
-                            },
-                          ]}
-                        >
-                          <Ionicons name="navigate" size={12} color="#000" style={styles.directionArrowIcon} />
-                        </View>
-                      </View>
-                    </Marker>
-                  )}
-
-                  {/* Nearby hospital safety anchors */}
-                  {nearbyHospitals.map((hosp) => (
-                    <Marker
-                      key={hosp.id}
-                      coordinate={{ latitude: hosp.latitude ?? 23.0225, longitude: hosp.longitude ?? 72.5714 }}
-                      title={hosp.name}
-                      description="Emergency Safety Anchor"
-                      onCalloutPress={() => navigation.navigate('HospitalDetail', { hospitalId: hosp.id })}
-                    >
-                      <View
-                        style={[
-                          styles.hospMarkerPin,
-                          {
-                            backgroundColor: hosp.isEmergencyCenter ? colors.emergency : colors.accent,
-                            borderColor: '#FFFFFF',
-                          },
-                          shadows.glowEmergency,
-                        ]}
-                      >
-                        <Ionicons name="medical" size={12} color="#FFFFFF" />
-                      </View>
-                    </Marker>
-                  ))}
-                </MapView>
-              </View>
-            )}
-
-            {/* Metrics row */}
+          <View style={styles.metricsGrid}>
             <View style={styles.metricsRow}>
-              <MetricCard
-                value={formatDuration(nav.elapsedSeconds)}
-                label="DURATION"
-                icon="time-outline"
-                glowing={isActive}
-              />
-              <View style={{ width: spacing[3] }} />
-              <MetricCard
-                value={formatDistance(nav.distanceKm)}
-                label="DISTANCE"
-                icon="navigate-outline"
-                glowing={isActive}
-              />
-              <View style={{ width: spacing[3] }} />
-              <MetricCard
-                value={String(Math.round(nav.speedKmh))}
-                unit="km/h"
-                label="SPEED"
-                icon="speedometer-outline"
-              />
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>SPEED</Text>
+                <View style={styles.metricValueWrap}>
+                  <Text style={styles.metricValue}>{isActive ? Math.round(nav.speedKmh) : '--'}</Text>
+                  <Text style={styles.metricUnit}>KM/H</Text>
+                </View>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>DISTANCE</Text>
+                <View style={styles.metricValueWrap}>
+                  <Text style={styles.metricValue}>{nav.distanceKm.toFixed(1)}</Text>
+                  <Text style={styles.metricUnit}>KM</Text>
+                </View>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>DURATION</Text>
+                <View style={styles.metricValueWrap}>
+                  <Text style={styles.metricValue}>{formatDuration(nav.elapsedSeconds)}</Text>
+                </View>
+              </View>
             </View>
+          </View>
 
-            {/* Crash status module — live sensor data */}
-            <CrashStatusModule
-              crashDetected={nav.crashDetected}
-              peakGForce={nav.peakGForce}
-              peakGyroRadS={nav.peakGyroRadS}
-              isActive={isActive}
-            />
+          <View style={styles.actionButtonsRow}>
+            {nav.canStart && (
+              <TouchableOpacity onPress={nav.startRide} style={[styles.actionBtn, { backgroundColor: colors.safe }]}>
+                <Ionicons name="play" size={20} color={colors.surfacePrimary} style={{ marginRight: 8 }} />
+                <Text style={styles.actionBtnText}>{t('home.startRide')}</Text>
+              </TouchableOpacity>
+            )}
+            {nav.canPause && (
+              <TouchableOpacity onPress={nav.pauseRide} style={[styles.actionBtn, { backgroundColor: colors.warning }]}>
+                <Ionicons name="pause" size={20} color={colors.surfacePrimary} style={{ marginRight: 8 }} />
+                <Text style={styles.actionBtnText}>Pause</Text>
+              </TouchableOpacity>
+            )}
+            {nav.canResume && (
+              <TouchableOpacity onPress={nav.resumeRide} style={[styles.actionBtn, { backgroundColor: colors.safe }]}>
+                <Ionicons name="play" size={20} color={colors.surfacePrimary} style={{ marginRight: 8 }} />
+                <Text style={styles.actionBtnText}>Resume</Text>
+              </TouchableOpacity>
+            )}
+            {nav.canStop && (
+              <TouchableOpacity onPress={() => nav.stopRide()} style={[styles.actionBtn, { backgroundColor: colors.emergency }]}>
+                <Ionicons name="stop" size={20} color={colors.surfacePrimary} style={{ marginRight: 8 }} />
+                <Text style={styles.actionBtnText}>{t('home.stopRide')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
 
-            {/* Ride controls */}
-            {completedSession === null && (
-              <View style={styles.controls}>
-                {isActive && (
-                  <>
-                    <CustomButton
-                      label="End Ride"
-                      onPress={handleStop}
-                      variant="danger"
-                      size="lg"
-                      fullWidth
-                      iconLeft="stop-circle"
-                    />
-                    <View style={{ height: spacing[3] }} />
-                    <CustomButton
-                      label="Pause Ride"
-                      onPress={nav.pauseRide}
-                      variant="secondary"
-                      size="md"
-                      fullWidth
-                      iconLeft="pause"
-                    />
-                  </>
-                )}
-                {isPaused && (
-                  <>
-                    <CustomButton
-                      label="Resume Ride"
-                      onPress={nav.resumeRide}
-                      variant="primary"
-                      size="lg"
-                      fullWidth
-                      iconLeft="play"
-                    />
-                    <View style={{ height: spacing[3] }} />
-                    <CustomButton
-                      label="End Ride"
-                      onPress={handleStop}
-                      variant="danger"
-                      size="md"
-                      fullWidth
-                      iconLeft="stop-circle"
-                    />
-                  </>
-                )}
+      {/* ── BOTTOM TRACKING SHEET (ONLY ON MAP MODE OR CRASH) ── */}
+      {(viewMode === 'map' || crashDetected) && (
+        <Animated.View style={[styles.bottomSheet, { transform: [{ translateY: slideAnim }] }]}>
+          {crashDetected ? (
+            <View style={styles.addressBarCrash}>
+              <Ionicons name="warning" size={24} color={colors.emergency} />
+              <Text style={styles.crashText}>CRASH DETECTED — SOS INITIATED</Text>
+            </View>
+          ) : (
+            <View style={styles.addressBar}>
+              <Ionicons name="speedometer-outline" size={20} color={colors.textPrimary} />
+              <Text style={styles.addressText} numberOfLines={1}>
+                {nav.distanceKm.toFixed(1)} km  •  {nav.speedKmh.toFixed(0)} km/h  •  {formatDuration(nav.elapsedSeconds)}
+              </Text>
+              <View style={styles.distancePill}>
+                <Text style={styles.distanceText}>{t('home.active')}</Text>
+              </View>
+            </View>
+          )}
+        </Animated.View>
+      )}
+
+      {/* ── LAST RIDE MODAL ── */}
+      <Modal visible={showLastRideModal} transparent animationType="fade" onRequestClose={() => setShowLastRideModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="time-outline" size={28} color={colors.safe} />
+              <Text style={styles.modalTitle}>{t('home.recentRides')}</Text>
+            </View>
+            {lastRide && (
+              <View style={styles.modalBody}>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Distance Covered</Text>
+                  <Text style={styles.modalValue}>{(lastRide.distanceKm || 0).toFixed(1)} km</Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Total Duration</Text>
+                  <Text style={styles.modalValue}>
+                    {formatDuration(lastRide.endTime ? Math.round((lastRide.endTime - lastRide.startTime) / 1000) : 0)}
+                  </Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Average Speed</Text>
+                  <Text style={styles.modalValue}>{(lastRide.avgSpeedKmh || 0).toFixed(1)} km/h</Text>
+                </View>
               </View>
             )}
-          </>
-        )}
-
-        {/* ── Ride summary ─────────────────────────────────────────────── */}
-        {completedSession !== null && (
-          <View style={styles.summarySection}>
-            <RideSummaryCard
-              session={completedSession}
-              onDismiss={() => setCompletedSession(null)}
-              onNewRide={handleStart}
-            />
+            <CustomButton label={t('settings.done')} onPress={() => setShowLastRideModal(false)} variant="secondary" />
           </View>
-        )}
-
-        <View style={{ height: spacing[16] }} />
-      </ScrollView>
-    </SafeAreaView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
-// ─── Map Styles ──────────────────────────────────────────────────────────────
-
-const mapStyleDark = [
-  {
-    elementType: 'geometry',
-    stylers: [{ color: '#0d1b2a' }],
+const getStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
-  {
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#748cab' }],
+  map: {
+    ...StyleSheet.absoluteFillObject,
   },
-  {
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#0d1b2a' }],
-  },
-  {
-    featureType: 'administrative',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#1b263b' }],
-  },
-  {
-    featureType: 'landscape.man_made',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#132135' }],
-  },
-  {
-    featureType: 'poi',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#8d99ae' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#1b263b' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#415a77' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'geometry',
-    stylers: [{ color: '#1f3a60' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#0b132b' }],
-  },
-];
-
-const mapStyleLight = [
-  {
-    elementType: 'geometry',
-    stylers: [{ color: '#f8fafc' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#e2e8f0' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#cbd5e1' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#e0f2fe' }],
-  },
-];
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  root:   { flex: 1 },
-  scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: layout.screenHorizontal,
-    paddingTop: spacing[2],
-  },
-  headerGradient: {
+  topSafeArea: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    zIndex: 10,
   },
-
-  statusStrip: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: radius.lg,
-    borderWidth: borderWidth.thin,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2.5],
-    marginBottom: spacing[4],
+    backgroundColor: colors.surfacePrimary,
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  statusStripLeft: { flexDirection: 'row', alignItems: 'center' },
-
-  liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-  liveDot:  { width: 7, height: 7, borderRadius: radius.full },
-  liveText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
-
-  gaugeSection: { alignItems: 'center', paddingVertical: spacing[4] },
-
+  segmentControl: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 20,
+    padding: 4,
+  },
+  segmentBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  segmentBtnActive: {
+    backgroundColor: colors.surfacePrimary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  segmentText: {
+    ...textStyles.labelMedium,
+    color: colors.textSecondary,
+  },
+  segmentTextActive: {
+    color: colors.textPrimary,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  etaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: colors.surfacePrimary,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  etaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  etaText: {
+    color: colors.safe,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  etaDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: colors.surfaceBorder,
+    marginHorizontal: 12,
+  },
+  etaSubText: {
+    color: colors.textSecondary,
+    fontWeight: '500',
+    fontSize: 14,
+    marginRight: 12,
+  },
+  refreshBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cockpitContainer: {
+    flex: 1,
+    paddingTop: 220,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  statusBanner: {
+    alignItems: 'center',
+    marginBottom: 40,
+    gap: 8,
+  },
+  statusText: {
+    ...textStyles.headingLarge,
+    letterSpacing: 0.5,
+  },
+  metricsGrid: {
+    width: '100%',
+    gap: 20,
+  },
   metricsRow: {
     flexDirection: 'row',
-    marginBottom: spacing[4],
+    gap: 20,
+    width: '100%',
   },
   metricCard: {
     flex: 1,
-    alignItems: 'center',
-    borderRadius: radius.lg,
-    borderWidth: borderWidth.thin,
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[2],
-  },
-
-  crashModule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: radius.lg,
-    borderWidth: borderWidth.thin,
-    padding: spacing[4],
-    marginBottom: spacing[5],
-  },
-  crashModuleLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 },
-  crashCheckWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
+    backgroundColor: colors.surfacePrimary,
+    borderRadius: 20,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 4,
   },
-  mockTag: {
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[0.5],
-    borderRadius: radius.full,
-    borderWidth: borderWidth.thin,
+  metricLabel: {
+    ...textStyles.labelCaps,
+    color: colors.textTertiary,
+    marginBottom: 8,
   },
-  sensorReadings: {
+  metricValueWrap: {
+    flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: spacing[1],
-    flexShrink: 0,
+    gap: 4,
   },
-  sensorChip: {
+  metricValue: {
+    ...textStyles.numericLarge,
+    color: colors.textPrimary,
+  },
+  metricUnit: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  actionButtonsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-  },
-
-  controls:       { gap: spacing[0] },
-  summarySection: { marginBottom: spacing[4] },
-
-  idleHero: {
-    alignItems: 'center',
-    paddingTop: spacing[8],
-    paddingBottom: spacing[4],
-  },
-  idleShieldWrap: {
-    width: 120,
-    height: 120,
-    borderRadius: radius['2xl'],
-    alignItems: 'center',
+    marginTop: 40,
+    gap: 16,
+    paddingHorizontal: 20,
+    width: '100%',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-
-  toggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: radius.xl,
-    borderWidth: borderWidth.thin,
-    padding: spacing[1],
-    marginBottom: spacing[4],
-  },
-  toggleButton: {
+  actionBtn: {
     flex: 1,
     flexDirection: 'row',
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing[2.5],
-    borderRadius: radius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  mapSection: {
-    height: 320,
-    borderRadius: radius.xl,
-    borderWidth: borderWidth.thin,
-    overflow: 'hidden',
-    marginBottom: spacing[5],
+  actionBtnText: {
+    ...textStyles.labelLarge,
+    color: '#FFF',
   },
-  rideMap: {
-    ...StyleSheet.absoluteFillObject,
+  bottomSheet: {
+    position: 'absolute',
+    bottom: 24,
+    left: 20,
+    right: 20,
+    backgroundColor: colors.surfacePrimary,
+    borderRadius: 24,
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  markerAnchorWrap: {
+  stepsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    position: 'relative',
+  },
+  progressLineBg: {
+    position: 'absolute',
+    top: 18,
+    left: 20,
+    right: 20,
+    height: 2,
+    backgroundColor: colors.surfaceBorder,
+    zIndex: 1,
+  },
+  progressLineActive: {
+    position: 'absolute',
+    top: 18,
+    left: 20,
+    height: 2,
+    backgroundColor: colors.safe,
+    zIndex: 2,
+  },
+  stepContainer: {
+    alignItems: 'center',
+    zIndex: 3,
+    width: 60,
+  },
+  stepIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    backgroundColor: colors.surfaceBorder,
+    borderWidth: 3,
+    borderColor: colors.surfacePrimary,
+  },
+  stepText: {
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  addressBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgPrimary,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  addressBarCrash: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.emergencySubtle,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    justifyContent: 'center',
+    gap: 8,
+  },
+  crashText: {
+    color: colors.emergency,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: colors.surfacePrimary,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  modalTitle: {
+    ...textStyles.displaySmall,
+    color: colors.textPrimary,
+  },
+  modalBody: {
+    backgroundColor: colors.bgPrimary,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    gap: 16,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalLabel: {
+    ...textStyles.labelLarge,
+    color: colors.textSecondary,
+  },
+  modalValue: {
+    ...textStyles.headingMedium,
+    color: colors.textPrimary,
+  },
+  addressText: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    fontSize: 13,
+    marginLeft: 8,
+  },
+  distancePill: {
+    backgroundColor: colors.safeSubtle,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  distanceText: {
+    color: colors.safe,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  userMarkerWrap: {
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  userPulseCircle: {
+  userMarkerGlow: {
     position: 'absolute',
     width: 32,
     height: 32,
-    borderRadius: radius.full,
-    borderWidth: 1.5,
+    borderRadius: 16,
   },
-  userDirectionArrow: {
-    width: 20,
-    height: 20,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  directionArrowIcon: {
-    transform: [{ rotate: '-45deg' }],
-    marginTop: -1.5,
-    marginLeft: -0.5,
-  },
-  hospMarkerPin: {
-    width: 24,
-    height: 24,
-    borderRadius: radius.full,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
+  userMarkerCore: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: colors.surfacePrimary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
 });

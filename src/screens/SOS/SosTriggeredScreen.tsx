@@ -73,7 +73,7 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={[styles.alertIconBadge, { backgroundColor: colors.emergency }]}>
-            <Ionicons name="megaphone" size={40} color="#FFFFFF" />
+            <Ionicons name="megaphone" size={40} color={colors.white} />
           </View>
           <Text style={[textStyles.displayMedium, styles.title, { color: colors.textPrimary }]}>
             SOS Dispatched

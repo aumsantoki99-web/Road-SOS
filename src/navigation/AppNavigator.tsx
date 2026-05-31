@@ -28,6 +28,7 @@ import { useTheme } from '../context/ThemeContext';
 import { STORAGE_KEYS } from '../constants';
 import { StorageService } from '../storage/StorageService';
 import { AuthScreen } from '../screens/Auth/AuthScreen';
+import { HomeSkeleton } from '../components/common/HomeSkeleton';
 
 // ── Modal screen imports ──────────────────────────────────────────────────────
 // These are stub screens until their feature branches are built.
@@ -35,13 +36,18 @@ import { AddContactScreen } from '../screens/EmergencyContacts/AddContactScreen'
 import { EditContactScreen } from '../screens/EmergencyContacts/EditContactScreen';
 import { HospitalDetailScreen } from '../screens/NearbyHospitals/HospitalDetailScreen';
 import { RideHistoryScreen } from '../screens/RideMonitoring/RideHistoryScreen';
+
+
 import { SOSConfirmationScreen } from '../screens/Home/SOSConfirmationScreen';
 import { OfflineModeScreen } from '../screens/OfflineMode/OfflineModeScreen';
 import { InAppNavigationModal } from '../screens/RideMonitoring/InAppNavigationModal';
 import { CrashCountdownScreen } from '../screens/SOS/CrashCountdownScreen';
 import { DeadManSwitchScreen } from '../screens/SOS/DeadManSwitchScreen';
 import { SosTriggeredScreen } from '../screens/SOS/SosTriggeredScreen';
-import { MedicalIDScreen } from '../screens/Settings/MedicalIDScreen';
+import { ProfileScreen } from '../screens/Settings/ProfileScreen';
+
+import { PrivacyPolicyScreen } from '../screens/Legal/PrivacyPolicyScreen';
+import { TermsConditionsScreen } from '../screens/Legal/TermsConditionsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -69,14 +75,21 @@ export function AppNavigator(): React.JSX.Element {
       }
     }
 
+    const logoutSub = import('react-native').then(({ DeviceEventEmitter }) => {
+      return DeviceEventEmitter.addListener('LOGOUT', () => {
+        setIsAuthenticated(false);
+      });
+    });
+
     void loadAuthState();
     return () => {
       mounted = false;
+      logoutSub.then(sub => sub.remove());
     };
   }, []);
 
   if (!authResolved) {
-    return <View style={{ flex: 1, backgroundColor: colors.bgPrimary }} />;
+    return <HomeSkeleton />;
   }
 
   return (
@@ -170,8 +183,28 @@ export function AppNavigator(): React.JSX.Element {
           />
 
           <Stack.Screen
-            name="MedicalID"
-            component={MedicalIDScreen}
+            name="Profile"
+            component={ProfileScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
+
+      {/* ── Legal screens ─────────────────────────────────────────────── */}
+          <Stack.Screen
+            name="PrivacyPolicy"
+            component={PrivacyPolicyScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="TermsConditions"
+            component={TermsConditionsScreen}
             options={{
               presentation: 'modal',
               animation: 'slide_from_bottom',

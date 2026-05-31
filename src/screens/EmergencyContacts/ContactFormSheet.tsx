@@ -134,7 +134,7 @@ export function ContactFormSheet({
   }, [form]);
 
   const handlePhoneChange = (v: string) => {
-    const cleaned = v.replace(/\D/g, '').slice(0, 15);
+    const cleaned = v.replace(/\D/g, '').slice(0, 10);
     setLocalPhone(cleaned);
     updateParentPhone(selectedCountry, cleaned);
   };
@@ -183,18 +183,21 @@ export function ContactFormSheet({
         >
           {/* ── Name field ──────────────────────────────────────────── */}
           <Field label={`${t('contacts.fullName')} *`} error={form.errors.name} touched={form.touched.name}>
-            <TextInput
-              style={[styles.input, getInputStyle('name')]}
-              placeholder="e.g. Priya Sharma"
-              placeholderTextColor={colors.textTertiary}
-              value={form.values.name}
-              onChangeText={(v) => form.setField('name', v)}
-              onBlur={() => form.touchField('name')}
-              autoCapitalize="words"
-              autoCorrect={false}
-              returnKeyType="next"
-              accessibilityLabel="Contact name"
-            />
+              <TextInput
+                style={[styles.input, getInputStyle('name')]}
+                placeholder="e.g. Priya Sharma"
+                placeholderTextColor={colors.textTertiary}
+                value={form.values.name}
+                onChangeText={(v) => form.setField('name', v)}
+                onBlur={() => form.touchField('name')}
+                maxLength={50}
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="next"
+                accessibilityLabel="Contact name"
+                textContentType="name"
+                autoComplete="name"
+              />
           </Field>
 
           {/* ── Phone field ─────────────────────────────────────────── */}
@@ -218,9 +221,11 @@ export function ContactFormSheet({
                 onChangeText={handlePhoneChange}
                 onBlur={() => form.touchField('phone')}
                 keyboardType="phone-pad"
-                maxLength={15}
+                maxLength={10}
                 returnKeyType="next"
                 accessibilityLabel="Phone number"
+                textContentType="telephoneNumber"
+                autoComplete="tel"
               />
             </View>
           </Field>
@@ -277,9 +282,12 @@ export function ContactFormSheet({
                 form.touchField('relationship');
               }}
               onBlur={() => form.touchField('relationship')}
+              maxLength={30}
               autoCapitalize="words"
               returnKeyType="done"
               accessibilityLabel="Custom relationship"
+              textContentType="none"
+              autoComplete="off"
             />
           </Field>
 
@@ -409,7 +417,7 @@ const styles = StyleSheet.create({
     padding: layout.screenHorizontal,
     borderTopWidth: borderWidth.hairline,
   },
-  footerButtons: { flexDirection: 'row', gap: spacing[3] },
-  cancelBtn:     { flex: 1 },
-  submitBtn:     { flex: 2 },
+  footerButtons: { flexDirection: 'column-reverse', gap: spacing[3] },
+  cancelBtn:     { width: '100%' },
+  submitBtn:     { width: '100%' },
 });

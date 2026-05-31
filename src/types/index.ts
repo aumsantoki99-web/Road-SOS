@@ -51,10 +51,12 @@ export interface AuthProfile {
   fullName: string;
   email: string;
   mobileNo: string;
+  countryCode?: string;
+  countryName?: string;
   bloodGroup: string;
   aadharCard: string;
   additionalMedicalInfo?: string;
-  password: string;
+  passwordHash: string;
   createdAt: number;
 }
 
@@ -74,6 +76,8 @@ export interface Hospital {
   /** Populated by Maps SDK — DO NOT implement here */
   longitude?: number;
   specialties: string[];
+  /** Categorization of the service place */
+  serviceType?: 'hospital' | 'police' | 'towing';
 }
 
 export type EmergencyPlaceType = 'hospital' | 'police' | 'trauma' | 'other';
@@ -144,6 +148,7 @@ export interface UserPreferences {
   autoShareLocation: boolean;
   rideAutoStart: boolean;
   language: AppLanguage;
+  sosDelay: number;
 }
 
 // ─── Network ─────────────────────────────────────────────────────────────────

@@ -1,279 +1,137 @@
-# RideSafe 🛡️
+# Road-SOS (Rescuel) 🏍️🚑
 
-<div align="center">
-
-**A smart rider safety companion for emergency-aware mobility.**
-
-Built by **Team Neurobyte** for riders, cyclists, delivery partners, solo travelers, and daily commuters who need a safety net that feels fast, calm, and dependable.
-
-![Expo](https://img.shields.io/badge/Expo-SDK%2054-000020?style=for-the-badge&logo=expo&logoColor=white)
-![React Native](https://img.shields.io/badge/React%20Native-0.81-61DAFB?style=for-the-badge&logo=react&logoColor=0B1220)
-![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Offline First](https://img.shields.io/badge/Offline--First-Ready-F59E0B?style=for-the-badge)
-![Accessibility](https://img.shields.io/badge/Accessibility-WCAG%20AA-14B8A6?style=for-the-badge)
-
-</div>
+**Road-SOS** is a real-time ride monitoring and emergency response application built with React Native. It is designed to act as a digital guardian for motorcyclists by providing a distraction-free riding cockpit, automated crash detection, and intelligent SOS routing that ensures help is always within reach.
 
 ---
 
-## Overview
+## ✨ Key Features
 
-**RideSafe** is a production-quality mobile frontend for rider protection. It monitors rides, detects crash scenarios through the service layer, alerts emergency contacts, supports SOS escalation, helps locate nearby hospitals, and keeps critical flows resilient with offline-first foundations.
-
-The app is designed around a **dark-steel emergency-tech identity**: deep slate surfaces, high-visibility amber interactions, teal safe states, and crimson reserved for true emergency moments.
-
-> This repository contains the complete frontend skeleton. Backend, ML, notification, SMS, and sensor integrations connect through the existing placeholder service layer.
-
----
-
-## Why RideSafe?
-
-Riders often travel alone, at night, through low-connectivity areas, or under time pressure. In an emergency, an app should not feel busy or fragile. RideSafe focuses on:
-
-- **Fast emergency recognition** with a dedicated SOS flow and high-contrast emergency states.
-- **Low-stress interaction design** using large touch targets, clear copy, and readable visual hierarchy.
-- **Offline-first resilience** so critical user context can remain available when connectivity is unstable.
-- **Trust-building feedback** through status banners, safety state indicators, countdowns, and confirmation screens.
-- **Integration-ready architecture** so backend, SMS, push, location, and crash detection modules can be connected cleanly.
+- **Live Cockpit Dashboard**: A high-visibility, distraction-free UI that displays real-time speed (KM/H), trip distance, and duration.
+- **Automated Crash Detection**: Utilizes device motion sensors (accelerometer/gyroscope) to detect potential accidents and trigger an SOS countdown.
+- **Smart Emergency Routing**: Automatically formats and routes emergency SMS messages with live GPS coordinates to pre-configured emergency contacts.
+- **Medical Intelligence Map**: Integrates with Google Maps to show live route tracking and plots nearby medical centers, with a specialized legend to highlight Trauma Centers versus regular hospitals.
+- **Secure Authentication**: Email and password authentication via Firebase, completely replacing less reliable phone OTP flows, ensuring user accounts are secure and accessible globally.
+- **Fluid UI/UX**: Built with custom animations, glassmorphism UI components, high-contrast dark mode support, and premium skeleton loading screens.
 
 ---
 
-## Core Features
+## 🛠️ Tech Stack
 
-| Area | What RideSafe Provides |
-|---|---|
-| **SOS Emergency Flow** | SOS confirmation, countdown, cancellation path, and dispatched alert state. |
-| **Ride Monitoring** | Ride session UI, speed-focused components, ride history, and safety monitoring surfaces. |
-| **Crash Response** | Crash countdown and dead-man-switch screens wired through crash detection services. |
-| **Emergency Contacts** | Contact management screens and primary-contact alert presentation. |
-| **Nearby Hospitals** | Hospital list and detail screens ready for location/API integration. |
-| **Offline Mode** | Offline banners, queue/storage services, and reconnect sync foundations. |
-| **Settings & Medical ID** | Preferences, profile setup, appearance controls, and emergency profile surfaces. |
-| **Accessibility** | Screen reader support, reduced motion handling, minimum touch targets, and contrast-focused themes. |
+- **Frontend Framework**: [React Native](https://reactnative.dev/) (Bare Workflow via Expo Prebuild)
+- **Language**: TypeScript
+- **State Management & Routing**: [React Navigation](https://reactnavigation.org/)
+- **Maps Integration**: `react-native-maps` with Google Maps SDK
+- **Backend & Auth**: [Firebase Authentication](https://firebase.google.com/docs/auth)
+- **Local Storage**: `expo-secure-store`
+- **Native Build System**: Gradle (Android)
 
 ---
 
-## UX & Safety Principles
+## 📂 Project Structure
 
-RideSafe is designed for stressful, time-sensitive moments. The interface prioritizes clarity over decoration.
-
-- **Emergency actions are visually unmistakable.** Crimson is reserved for SOS, crash, and destructive states.
-- **Safe and active states are distinct.** Teal communicates monitoring, readiness, and stability.
-- **Touch targets stay rider-friendly.** Controls follow a 44pt minimum target guideline.
-- **Motion is meaningful and respectful.** Animations guide attention, and reduced-motion preferences are supported.
-- **Critical copy is direct.** Labels avoid ambiguity in countdowns, alerts, and cancel paths.
-- **Themes serve safety.** Dark, light, and night palettes are tuned for readability and reduced glare.
+```
+Road-SOS/
+├── android/                 # Native Android code generated via Expo Prebuild
+├── src/
+│   ├── assets/              # App icons, adaptive icons, and static images
+│   ├── components/          # Reusable UI components (Skeleton loaders, Modals, Buttons)
+│   ├── context/             # React Contexts (Theme, Auth, Network, AppState)
+│   ├── hooks/               # Custom React Hooks (useLiveLocation, useRideSession)
+│   ├── navigation/          # React Navigation stacks and routers
+│   ├── screens/             # Main application screens (Auth, RideMonitoring, Map)
+│   ├── theme/               # Global styling, color palettes, and typography tokens
+│   └── utils/               # Helper functions (formatters, validators, math helpers)
+├── App.tsx                  # Application entry point and root Provider tree
+├── app.json                 # Expo configuration (permissions, splash screen, bundle ID)
+└── package.json             # Node.js dependencies and scripts
+```
 
 ---
 
-## Quick Start
+## 🚀 Installation & Setup
+
+### Prerequisites
+1. **Node.js**: Ensure Node.js (v18+) is installed.
+2. **Android Studio**: Required for compiling the native Android application.
+3. **Expo CLI**: Installed globally (`npm install -g expo-cli`).
+4. **Firebase Account**: Required for Authentication services.
+
+### 1. Clone & Install Dependencies
+```bash
+git clone https://github.com/your-username/Road-SOS.git
+cd Road-SOS
+npm install
+```
+
+### 2. Configure Environment Variables
+You must provide your own API keys. Ensure `google-services.json` is placed in the root directory for Firebase Android configuration.
+
+Create a `.env` file in the root if you are using environment variables for the Google Maps API key, or ensure your `app.json` contains your valid Maps key under `android.config.googleMaps.apiKey`.
+
+### 3. Start the Development Server
+```bash
+npx expo start
+```
+*Note: Because this project uses custom native modules (Bare Workflow), you cannot use Expo Go. You must build a custom development client or run on an emulator/device.*
+
+### 4. Run on Android Device/Emulator
+```bash
+npx react-native run-android
+# OR
+npx expo run:android
+```
+
+---
+
+## 📦 Building for Production
+
+To generate a standalone, production-ready APK, we use Gradle directly:
 
 ```bash
-# 1. Clone
-git clone https://github.com/your-org/ridesafe.git
-cd ridesafe
-
-# 2. Install (Node 18+ required)
-npm install
-
-# 3. Start
-npm start
-# Scan QR code with Expo Go (SDK 54)
-# Press 'a' for Android emulator, 'i' for iOS simulator
+cd android
+.\gradlew clean
+.\gradlew assembleRelease
 ```
+The compiled APK will be output to:
+`android/app/build/outputs/apk/release/app-release.apk`
 
 ---
 
-## Tech Stack
+## 🔒 Security & Privacy Configurations
 
-| Layer | Technology |
-|---|---|
-| Framework | React Native + **Expo SDK 54** |
-| Language | TypeScript strict mode |
-| Navigation | React Navigation v6 |
-| State | Context API + useReducer |
-| Storage | AsyncStorage via StorageService |
-| Animations | React Native Animated API |
-| Icons | @expo/vector-icons / Ionicons |
-| Gradients | expo-linear-gradient |
+### Firebase Authentication
+- The app uses `createUserWithEmailAndPassword` and `signInWithEmailAndPassword`.
+- Passwords are never stored locally in plain text; authentication tokens are managed by Firebase and persisted locally using encrypted `expo-secure-store`.
 
----
+### Android Permissions
+The application strictly requests the following permissions in `app.json` / `AndroidManifest.xml`:
+- `ACCESS_FINE_LOCATION` & `ACCESS_COARSE_LOCATION`: Required for live routing and mapping nearby hospitals.
+- `ACCESS_BACKGROUND_LOCATION`: Required to track the user's ride and detect crashes even when the screen is locked.
+- `FOREGROUND_SERVICE`: Ensures the operating system does not kill the app during an active ride.
+- `VIBRATE`: Used to provide haptic feedback during SOS countdowns to alert the rider.
 
-## Scripts
-
-| Command | Description |
-|---|---|
-| `npm start` | Start Expo dev server |
-| `npm run android` | Run on Android |
-| `npm run ios` | Run on iOS |
-| `npm run type-check` | Run TypeScript validation |
-| `npm run lint` | Run ESLint with auto-fix |
-| `npm run format` | Format source files with Prettier |
+### Data Sanitization
+- Emergency contact inputs are strictly validated. The app isolates the 10-digit subscriber number from the international prefix (e.g., `+91`) before executing validation to ensure no false negatives occur during SOS routing.
 
 ---
 
-## Architecture
+## 🎨 Customizing the Native App Icon & Splash Screen
 
-RideSafe keeps presentation, state, services, storage, navigation, and theme concerns separated so integrations can be added without reshaping the app.
-
-```text
-RideSafe/
-├── App.tsx                          # Root provider tree
-├── index.js                         # Entry point
-├── app.json                         # Expo SDK 54 config
-├── tsconfig.json                    # Strict TypeScript config
-├── BRANCHES.md                      # Branching guide
-├── ACCESSIBILITY.md                 # Accessibility audit + checklist
-└── src/
-    ├── components/
-    │   ├── common/                  # AppHeader, CustomButton, ToggleSwitch
-    │   ├── cards/                   # EmergencyCard, ActionCard, RideStatusCard
-    │   ├── buttons/                 # FloatingSOSButton
-    │   └── banners/                 # StatusBanner, OfflineBanner
-    ├── screens/
-    │   ├── Home/                    # HomeScreen, SOSConfirmationScreen
-    │   ├── RideMonitoring/          # RideMonitoringScreen, SpeedGauge
-    │   ├── EmergencyContacts/       # Contact CRUD screens + form sheet
-    │   ├── NearbyHospitals/         # Hospital list + detail screen
-    │   ├── OfflineMode/             # OfflineModeScreen
-    │   └── Settings/                # SettingsScreen, Medical ID
-    ├── context/                     # Theme, app state, network, localization
-    ├── hooks/                       # Custom app hooks
-    ├── services/                    # Integration-ready service layer
-    ├── storage/                     # StorageService, QueueService
-    ├── navigation/                  # AppNavigator, tabs, navigation refs
-    ├── theme/                       # Colors, typography, spacing, shadows
-    ├── types/                       # Shared TypeScript types
-    ├── constants/                   # Storage keys and defaults
-    ├── utils/                       # Formatters, validators, a11y helpers
-    └── mock/                        # Static mock data
-```
+If you need to change the application icon:
+1. Replace `src/assets/icon.png` and `src/assets/adaptive-icon.png` with your new assets.
+2. Run the Expo Prebuild command to cleanly regenerate the native Android resource directories:
+   ```bash
+   npx expo prebuild --platform android --clean
+   ```
+3. Rebuild the application using Gradle.
 
 ---
 
-## Design System
+## 🐛 Troubleshooting
 
-### Color Modes
-
-| Mode | Trigger | Character |
-|---|---|---|
-| **Dark** | System dark / forced | Deep slate + electric amber |
-| **Light** | System light / forced | Clean white + warm amber |
-| **Night** | Auto mode after 19:00 | Near-black + high-contrast crimson |
-
-Night mode reduces display glare while riding after sunset. It activates automatically in `auto` theme mode and can be configured in **Settings → Appearance → Auto**.
-
-### Typography
-
-| Role | Typeface |
-|---|---|
-| Display / Headers | Syne |
-| UI / Body | DM Sans |
-| Stats / Timer | System monospace |
-
-### Key Metrics
-
-- Base grid: **4pt**
-- Minimum touch target: **44pt**
-- Border radius scale: **xs(4) → full(9999)**
+- **Google Maps Not Loading / Grey Grid:** Ensure your Google Maps API Key in `app.json` is valid and unrestricted, and that billing is enabled on your Google Cloud Console.
+- **Firebase Auth Errors:** Double-check that your `google-services.json` is in the root directory and that the package name in `app.json` (`com.aumus.road_sos`) perfectly matches your Firebase project settings.
+- **Gradle Build Failures:** If you encounter `splashscreen_logo` errors, ensure that your native Android `res/drawable` folders contain a valid PNG image, or run `expo prebuild --clean` to reset the native state.
 
 ---
-
-## Backend Integration Guide
-
-The frontend is structured for clean handoff into real backend, ML, SMS, notification, and location services.
-
-| Integration | File | Connect | Wire Point |
-|---|---|---|---|
-| Crash Detection | `src/services/crashDetection.service.ts` | `expo-sensors` Accelerometer + ML model | `RideMonitoringScreen` → `CrashDetectionService.onCrashDetected()` |
-| SOS Alerts | `src/services/emergency.service.ts` | Twilio SMS / Firebase Cloud Functions | `SOSConfirmationScreen` on countdown complete |
-| Backend Sync | `src/services/sync.service.ts` | Firebase Firestore / REST API | `NetworkContext.flush()` on reconnect |
-| Hospital Lookup | `src/services/hospital.service.ts` | Google Places API + `expo-location` | `NearbyHospitalsScreen` → `HospitalService.getNearby()` |
-| Push Notifications | `src/services/notification.service.ts` | `expo-notifications` + Expo Push Service | `CrashDetectionService.onCrashDetected()` |
-
----
-
-## Path Aliases
-
-```typescript
-import { CustomButton } from '@components/common';
-import { useRideSession } from '@hooks';
-import { colors } from '@theme/colors';
-import { StorageService } from '@storage';
-import { EmergencyService } from '@services/emergency.service';
-```
-
-Configured in `tsconfig.json` and `babel.config.js`.
-
----
-
-## Accessibility
-
-Full audit: [`ACCESSIBILITY.md`](ACCESSIBILITY.md)
-
-- WCAG 2.1 AA color contrast across all 3 themes
-- 44pt minimum touch targets throughout
-- VoiceOver / TalkBack compatible patterns
-- `useReducedMotion()` pauses decorative motion when enabled
-- `useScreenReader()` supports dynamic state announcements
-- Font scaling up to 1.5x tested
-
----
-
-## Branching Strategy
-
-Full guide: [`BRANCHES.md`](BRANCHES.md)
-
-```text
-main ← dev ← feature/*
-```
-
-### Branch Summary
-
-| Branch | Owner | Status |
-|---|---|---|
-| `feature/app-setup` | Lead Developer | Complete |
-| `feature/theme-system` | UI Developer | Complete |
-| `feature/navigation-system` | Frontend Developer | Complete |
-| `feature/reusable-components` | UI Developer | Complete |
-| `feature/home-screen` | UI Developer | Complete |
-| `feature/ride-monitoring` | Frontend Developer | Complete |
-| `feature/emergency-contacts` | Frontend Developer | Complete |
-| `feature/offline-mode` | Frontend Developer | Complete |
-| `feature/hospital-screen` | UI Developer | Complete |
-| `feature/settings-screen` | Frontend Developer | Complete |
-| `feature/local-storage` | Backend-leaning FE | Complete |
-| `feature/placeholder-services` | Integration Developer | Complete |
-| `feature/animations` | UI Developer | Complete |
-| `feature/accessibility` | Any Developer | Complete |
-| `feature/refactor-cleanup` | Tech Lead | Complete |
-
----
-
-## Team Neurobyte
-
-Built with focus, speed, and care by:
-
-| Team Member |
-|---|
-| Aum Santoki |
-| Deepam Raval |
-| Hetvi Patoliya |
-| Jwal Korat |
-| Kashvi Porwal |
-| Palash Kulkarni |
-| Pranshu Pujara |
-| Tanishk Joshi |
-
----
-
-## Footer
-
-**RideSafe** is a hackathon-built emergency safety frontend focused on credible UX, integration readiness, accessibility, and offline-first rider protection.
-
-<div align="center">
-
-**RideSafe by Team Neurobyte**  
-Expo SDK 54 · TypeScript Strict · Offline-First · Emergency-Focused
-
-</div>
+*Road-SOS — Ride Hard. Ride Safe.*

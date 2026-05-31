@@ -27,7 +27,8 @@
  */
 
 import { QueueService } from '../storage/QueueService';
-import type { EmergencyContact, CrashSensitivity } from '../types';
+import { StorageService } from '../storage/StorageService';
+import type { EmergencyContact } from '../types';
 import * as SMS from 'expo-sms';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -85,8 +86,20 @@ export const EmergencyService = {
 
     console.warn('[EmergencyService] triggerSOS() — mock mode:', payload);
 
-    // Queue for offline safety — sent when online
-    const queued = await QueueService.enqueue('sos', payload as unknown as Record<string, unknown>);
+    // Queue for offline safety — sent when online if offlineModeEnabled is true
+    let queuedId = 'mock-alert-id';
+    let offlineModeEnabled = true;
+    try {
+      const prefRes = await StorageService.get<any>('@ridesafe/user_preferences');
+      if (prefRes.success && prefRes.data) {
+        offlineModeEnabled = prefRes.data.offlineModeEnabled ?? true;
+      }
+    } catch (e) {}
+
+    if (offlineModeEnabled) {
+      const queued = await QueueService.enqueue('sos', payload as unknown as Record<string, unknown>);
+      queuedId = queued.id;
+    }
 
     const phoneNumbers = contacts
       .map((contact) => contact.phone.trim())
@@ -111,8 +124,8 @@ export const EmergencyService = {
 
     return {
       success: true, // mock — real success requires API confirmation
-      queued: true,
-      alertId: queued.id,
+      queued: offlineModeEnabled,
+      alertId: queuedId,
       smsOpened,
     };
   },

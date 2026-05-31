@@ -28,6 +28,9 @@
  */
 
 import { QueueService } from '../storage/QueueService';
+import { syncPendingQueue } from './emergencyQueue.service';
+import { STORAGE_KEYS } from '../constants';
+import { StorageService } from '../storage/StorageService';
 import type { EmergencyContact, RideSession } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,6 +42,11 @@ export interface SyncResult {
   synced: number;
   failed: number;
   timestamp: number;
+}
+
+export interface SyncWorkResult extends SyncResult {
+  emergencySynced: number;
+  emergencyFailed: number;
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -53,9 +61,10 @@ export const SyncService = {
    *   await ref.set({ ...session, syncedAt: firestore.FieldValue.serverTimestamp() });
    */
   async pushRideSession(session: RideSession): Promise<void> {
-    console.warn('[SyncService] pushRideSession() — mock:', session.id);
-    await QueueService.enqueue('ride_end', session as unknown as Record<string, unknown>);
-    // TODO: await firestore().collection('rides').doc(session.id).set(session);
+    const existing = await StorageService.get<RideSession[]>(STORAGE_KEYS.RIDE_HISTORY);
+    const rides = existing.success && existing.data ? existing.data : [];
+    const updated = [session, ...rides.filter((ride) => ride.id !== session.id)];
+    await StorageService.set(STORAGE_KEYS.RIDE_HISTORY, updated);
   },
 
   /**
@@ -69,8 +78,7 @@ export const SyncService = {
    *   });
    */
   async pushContacts(contacts: EmergencyContact[]): Promise<void> {
-    console.warn('[SyncService] pushContacts() — mock. Contacts count:', contacts.length);
-    // TODO: await fetch(`${API_BASE}/contacts`, { method: 'PUT', body: JSON.stringify(contacts) });
+    await StorageService.set(STORAGE_KEYS.CONTACTS, contacts);
   },
 
   /**
@@ -88,6 +96,17 @@ export const SyncService = {
     };
   },
 
+  async flushAllPendingWork(): Promise<SyncWorkResult> {
+    const generic = await SyncService.flush();
+    const emergency = await syncPendingQueue();
+    return {
+      ...generic,
+      success: generic.failed === 0 && emergency.failed === 0,
+      emergencySynced: emergency.synced,
+      emergencyFailed: emergency.failed,
+    };
+  },
+
   /**
    * Mark a local entity as dirty (needing sync).
    * Called after every local write in StorageService.
@@ -95,8 +114,7 @@ export const SyncService = {
    * TODO: implement a dirty-flag map and batch sync on interval.
    */
   markDirty(entity: SyncEntity, id: string): void {
-    console.warn(`[SyncService] markDirty(${entity}, ${id}) — mock`);
-    // TODO: this._dirtyMap.set(`${entity}:${id}`, Date.now());
+    console.log(`[SyncService] markDirty(${entity}, ${id})`);
   },
 
   /**
@@ -107,7 +125,6 @@ export const SyncService = {
    *   await StorageService.set(STORAGE_KEYS.CONTACTS, snapshot.data()?.contacts ?? []);
    */
   async pull(): Promise<void> {
-    console.warn('[SyncService] pull() — mock. Wire Firestore/API here.');
-    // TODO: fetch remote state and merge into AsyncStorage
+    await SyncService.flushAllPendingWork();
   },
 } as const;
