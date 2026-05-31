@@ -141,16 +141,16 @@ function LiveMap({
           const sType = h.serviceType || 'hospital';
           const isEmergency = h.isEmergencyCenter;
           
-          let pinColor = isEmergency ? colors.emergency : '#F59E0B';
+          let pinColor = isEmergency ? 'red' : 'orange';
           let iconName = "medical";
           let desc = h.isEmergencyCenter ? '24/7 Emergency Wing' : 'Clinic / Hospital';
           
           if (sType === 'police') {
-            pinColor = '#3B82F6';
+            pinColor = 'blue';
             iconName = 'shield';
             desc = 'Police Station';
           } else if (sType === 'towing') {
-            pinColor = '#D97706';
+            pinColor = 'yellow';
             iconName = 'car';
             desc = 'Towing / Car Repair';
           }
@@ -165,21 +165,7 @@ function LiveMap({
               description={desc}
               onPress={() => onHospitalSelect && onHospitalSelect(h)}
               onCalloutPress={() => onHospitalSelect && onHospitalSelect(h)}
-            >
-              <View
-                style={[
-                  styles.markerHospWrap,
-                  {
-                    backgroundColor: pinColor,
-                    borderColor: '#FFFFFF',
-                    transform: [{ scale: isSelected ? 1.25 : 1 }],
-                  },
-                  isEmergency && sType === 'hospital' ? shadows.glowEmergency : shadows.sm,
-                ]}
-              >
-                <Ionicons name={iconName as any} size={14} color="#FFFFFF" />
-              </View>
-            </Marker>
+            />
           );
         })}
       </MapView>
@@ -515,7 +501,7 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
       <View style={styles.pageHeader}>
         <View>
           <Text style={[textStyles.displaySmall, { color: colors.textPrimary }]}>
-            {t('home.hospitals')}
+            Emergency Services
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: 2 }}>
             <Text style={[textStyles.caption, { color: colors.textTertiary }]}>
@@ -548,7 +534,7 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
         <View style={styles.loadingWrap}>
           <Ionicons name="wifi-outline" size={48} color={colors.textTertiary} />
           <Text style={[textStyles.headingSmall, { color: colors.textPrimary, marginTop: spacing[4] }]}>
-            Could not load hospitals
+            Could not load emergency services
           </Text>
           <Text style={[textStyles.bodySmall, { color: colors.textTertiary, marginTop: spacing[2], textAlign: 'center' }]}>
             Check your internet connection and location permission.
@@ -616,7 +602,7 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
                     }}
                   />
                   <Text style={[textStyles.labelCaps, { color: colors.textTertiary, marginTop: spacing[6], marginBottom: spacing[3] }]}>
-                    OTHER HOSPITALS
+                    OTHER EMERGENCY SERVICES
                   </Text>
                 </>
               )}
@@ -645,7 +631,7 @@ export function NearbyHospitalsScreen(_props: HospitalsScreenProps): React.JSX.E
             <View style={styles.loadingWrap}>
               <Ionicons name="medical-outline" size={40} color={colors.textTertiary} />
               <Text style={[textStyles.headingSmall, { color: colors.textPrimary, marginTop: spacing[3] }]}>
-                No hospitals found nearby
+                No emergency services found nearby
               </Text>
               <Text style={[textStyles.bodySmall, { color: colors.textTertiary, marginTop: spacing[2], textAlign: 'center' }]}>
                 Try refreshing location or increasing your movement radius.

@@ -199,7 +199,7 @@ async function sendSmsAlerts(event: CrashEvent, isTest = false): Promise<SosSend
   try {
     const prefRes = await StorageService.get<Record<string, unknown>>(STORAGE_KEYS.PREFERENCES);
     if (prefRes.success && prefRes.data) {
-      offlineModeEnabled = prefRes.data.offlineModeEnabled ?? true;
+      offlineModeEnabled = Boolean(prefRes.data.offlineModeEnabled ?? true);
     }
   } catch (e) {
     console.warn('[SosService] Failed to fetch preferences for offline mode:', e);
@@ -353,7 +353,7 @@ export const SosService = {
     try {
       const prefRes = await StorageService.get<Record<string, unknown>>(STORAGE_KEYS.PREFERENCES);
       if (prefRes.success && prefRes.data) {
-        offlineModeEnabled = prefRes.data.offlineModeEnabled ?? true;
+        offlineModeEnabled = Boolean(prefRes.data.offlineModeEnabled ?? true);
       }
     } catch (e) {
       console.warn('[SosService] Failed to fetch preferences for offline mode:', e);

@@ -1,5 +1,11 @@
 # Road-SOS (Rescuel) 🏍️🚑
 
+## 🌐 About & Live Download
+
+Official download & guide page for Road-SOS (Resucel) — a React Native safety app for motorcyclists. Features APK download, Gradle build instructions, tech stack overview, and installation guide.
+
+**Live Link**: [pranshupujara.github.io/Rescuel/](https://pranshupujara.github.io/Rescuel/)
+
 **Road-SOS** is a real-time ride monitoring and emergency response application built with React Native. It is designed to act as a digital guardian for motorcyclists by providing a distraction-free riding cockpit, automated crash detection, and intelligent SOS routing that ensures help is always within reach.
 
 ---

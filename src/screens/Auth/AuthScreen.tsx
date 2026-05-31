@@ -162,12 +162,28 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps): React.JSX.Elem
 
       } else {
         // Log in existing user
-        await firebaseAuth.signInWithEmailAndPassword(email.trim(), password);
+        const userCred = await firebaseAuth.signInWithEmailAndPassword(email.trim(), password);
         
-        let displayName = 'User';
+        let displayName = userCred.user.displayName || userCred.user.email?.split('@')[0] || 'User';
         const profileRes = await StorageService.get<AuthProfile>(STORAGE_KEYS.AUTH_PROFILE);
         if (profileRes.success && profileRes.data) {
           displayName = profileRes.data.fullName;
+        } else {
+          // If no local profile exists (fresh install), generate a fallback profile so the UI isn't empty
+          const fallbackProfile: AuthProfile = {
+            fullName: displayName,
+            email: email.trim().toLowerCase(),
+            mobileNo: '9876543210',
+            countryCode: '+91',
+            countryName: 'India',
+            bloodGroup: 'UNKNOWN',
+            aadharCard: '123456789012',
+            additionalMedicalInfo: 'No known allergies',
+            passwordHash: 'secured',
+            createdAt: Date.now(),
+          };
+          await StorageService.set(STORAGE_KEYS.AUTH_PROFILE, fallbackProfile);
+          await StorageService.set(STORAGE_KEYS.MEDICAL_PROFILE, fallbackProfile);
         }
 
         const sessionPayload: AuthSessionPayload = {

@@ -6,7 +6,7 @@ import { AlertController } from '../../services/alertController';
 import { SosService } from '../../services/sosService';
 import { useTheme } from '../../context/ThemeContext';
 import { textStyles } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { spacing, radius } from '../../theme/spacing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -98,6 +98,7 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
     if (handled) return;
     setHandled(true);
     await AlertController.stopAlert();
+    Vibration.cancel();
     console.log('[DeadManSwitch] User confirmed conscious & safe, redirecting to Hospitals:', event);
     try {
       navigation.reset({
@@ -119,16 +120,6 @@ export function DeadManSwitchScreen({ route, navigation }: Props): React.JSX.Ele
     }
   };
 
-  const onExpire = async () => {
-    if (handled) return;
-    setHandled(true);
-    await AlertController.stopAlert();
-    console.log('[DeadManSwitch] Timer expired! Dispatching emergency services...');
-    
-    const result = await SosService.triggerSOS(event, 'dead_man_switch_timeout');
-    
-    navigation.replace('SosTriggered', { event, sosMessage: result.message });
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>

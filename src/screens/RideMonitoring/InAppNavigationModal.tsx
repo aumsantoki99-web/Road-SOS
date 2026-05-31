@@ -312,24 +312,17 @@ export function InAppNavigationModal({ route }: InAppNavigationScreenProps): Rea
         {/* Target Hospital marker */}
         <Marker
           coordinate={{ latitude: hospital.latitude ?? 23.0225, longitude: hospital.longitude ?? 72.5714 }}
-          title={hospital.name}
-          description="Emergency Entrance"
-        >
-          <View style={[styles.markerHospWrap, { backgroundColor: colors.emergency, borderColor: '#FFFFFF' }, shadows.glowEmergency]}>
-            <Ionicons name="medical" size={16} color="#FFFFFF" />
-          </View>
-        </Marker>
+          anchor={{ x: 0.5, y: 0.5 }}
+        />
 
         {/* User moving/simulated cursor */}
         {isSimulating && (
-          <Marker coordinate={currentPosition} flat anchor={{ x: 0.5, y: 0.5 }}>
-            <View style={styles.simPulseContainer}>
-              <View style={[styles.simPulseCircle, { borderColor: colors.accent }]} />
-              <View style={[styles.simCursor, { backgroundColor: colors.accent }]}>
-                <Ionicons name="navigate" size={13} color="#000" style={styles.simCursorIcon} />
-              </View>
-            </View>
-          </Marker>
+          <Marker 
+            coordinate={currentPosition} 
+            flat 
+            anchor={{ x: 0.5, y: 0.5 }} 
+            image={require('../../assets/rider_marker.png')} 
+          />
         )}
       </MapView>
 

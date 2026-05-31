@@ -160,13 +160,8 @@ export function RideMonitoringScreen(): React.JSX.Element {
             <Marker
               coordinate={{ latitude: liveLoc.latitude, longitude: liveLoc.longitude }}
               anchor={{ x: 0.5, y: 0.5 }}
-              zIndex={999}
-            >
-              <View style={styles.userMarkerWrap}>
-                <View style={[styles.userMarkerGlow, { backgroundColor: 'rgba(57, 255, 20, 0.4)' }]} />
-                <View style={[styles.userMarkerCore, { backgroundColor: '#39FF14' }]} />
-              </View>
-            </Marker>
+              image={require('../../assets/rider_marker.png')}
+            />
           )}
         </MapView>
       )}

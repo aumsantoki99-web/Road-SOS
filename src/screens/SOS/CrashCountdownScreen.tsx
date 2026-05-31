@@ -95,6 +95,7 @@ export function CrashCountdownScreen({ route, navigation }: Props): React.JSX.El
     if (handled) return;
     setHandled(true);
     await AlertController.stopAlert();
+    Vibration.cancel();
     console.log('[CrashCountdown] False positive resolved by user:', event);
     navigation.goBack();
   };

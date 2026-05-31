@@ -14,11 +14,19 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
   const { event, sosMessage } = route.params;
   const { colors } = useTheme();
 
-  const lat = event.latitude ?? (event as Record<string, unknown>).lat ?? 0;
-  const lon = event.longitude ?? (event as Record<string, unknown>).lon ?? 0;
+  const lat = Number(event.latitude ?? (event as unknown as Record<string, unknown>).lat ?? 0);
+  const lon = Number(event.longitude ?? (event as unknown as Record<string, unknown>).lon ?? 0);
 
   // Flashing animation for emergency background
   const flashAnim = useRef(new Animated.Value(0.2)).current;
+
+  const onHome = useCallback(() => {
+    try {
+      navigation.popToTop();
+    } catch {
+      navigation.navigate('MainTabs');
+    }
+  }, [navigation]);
 
   useEffect(() => {
     // Prevent going back via hardware back button
@@ -49,14 +57,6 @@ export function SosTriggeredScreen({ route, navigation }: Props): React.JSX.Elem
       backHandler.remove();
     };
   }, [flashAnim, onHome]);
-
-  const onHome = useCallback(() => {
-    try {
-      navigation.popToTop();
-    } catch {
-      navigation.navigate('MainTabs');
-    }
-  }, [navigation]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
