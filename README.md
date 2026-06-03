@@ -91,15 +91,21 @@ npx expo run:android
 
 ## 📦 Building for Production
 
-To generate a standalone, production-ready APK, we use Gradle directly:
-
+### Android (Locally via Gradle)
+To generate a standalone, production-ready APK directly on your Windows or Mac machine:
 ```bash
 cd android
 .\gradlew clean
 .\gradlew assembleRelease
 ```
-The compiled APK will be output to:
-`android/app/build/outputs/apk/release/app-release.apk`
+The compiled APK will be output to: `android/app/build/outputs/apk/release/app-release.apk`
+
+### iOS (via EAS Build)
+Because iOS applications require macOS and Xcode to compile, Windows users can use Expo Application Services (EAS) to build the iOS app in the cloud:
+1. Install EAS CLI: `npm install -g eas-cli`
+2. Login to your Expo account: `eas login`
+3. Configure the project: `eas build:configure`
+4. Run the cloud build: `eas build --platform ios`
 
 ---
 
