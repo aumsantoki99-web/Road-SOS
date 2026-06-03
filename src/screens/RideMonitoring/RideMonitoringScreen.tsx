@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Animated,
   SafeAreaView,
-  Image,
   Alert,
   Modal
 } from 'react-native';
@@ -21,29 +20,33 @@ import { useTranslation } from '../../context/LocalizationContext';
 import { useRideSession } from '../../hooks/useRideSession';
 import { useAppNavigation } from '../../navigation/useAppNavigation';
 import { useLiveLocation } from '../../hooks/useLiveLocation';
-import { pastelMapStyle } from '../../constants/mapStyle';
+import { darkMapStyle, lightMapStyle } from '../../constants/mapStyle';
 import { formatDuration } from '../../utils';
 import { StorageService } from '../../storage/StorageService';
 import { STORAGE_KEYS } from '../../constants';
 import type { RideSession } from '../../types';
 import { CustomButton } from '../../components/common/CustomButton';
+import { WeatherService, WeatherInfo } from '../../services/weatherService';
+import { convoyService, ConvoyMember } from '../../services/convoyService';
 
 export function RideMonitoringScreen(): React.JSX.Element {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { t } = useTranslation();
   const styles = React.useMemo(() => getStyles(colors), [colors]);
   const nav = useRideSession();
   const navigation = useAppNavigation();
-  const { location: liveLoc } = useLiveLocation(nav.status === 'active');
+  const mapRef = useRef<MapView | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<{ latitude: number; longitude: number }[]>([]);
   const [viewMode, setViewMode] = useState<'cockpit' | 'map'>('cockpit');
+  const shouldTrackLocation = nav.status === 'active' || viewMode === 'map';
+  const { location: liveLoc } = useLiveLocation(shouldTrackLocation);
   const insets = useSafeAreaInsets();
 
   const isActive = nav.status === 'active';
   const crashDetected = nav.crashDetected;
 
   useEffect(() => {
-    if (!isActive) return;
+    if (!shouldTrackLocation) return;
     if (liveLoc) {
       setBreadcrumbs(prev => {
         const last = prev[prev.length - 1];
@@ -53,7 +56,20 @@ export function RideMonitoringScreen(): React.JSX.Element {
         return [...prev, { latitude: liveLoc.latitude, longitude: liveLoc.longitude }];
       });
     }
-  }, [liveLoc, isActive]);
+  }, [liveLoc, shouldTrackLocation]);
+
+  useEffect(() => {
+    if (viewMode !== 'map' || !liveLoc || !mapRef.current) return;
+    mapRef.current.animateToRegion(
+      {
+        latitude: liveLoc.latitude,
+        longitude: liveLoc.longitude,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012,
+      },
+      500,
+    );
+  }, [liveLoc, viewMode]);
 
   // For the bottom sheet animation
   const slideAnim = useRef(new Animated.Value(300)).current;
@@ -75,8 +91,30 @@ export function RideMonitoringScreen(): React.JSX.Element {
     navigation.goBack();
   };
 
+  const userId = React.useRef('rider-' + Math.floor(Math.random() * 10000)).current;
   const [lastRide, setLastRide] = useState<RideSession | null>(null);
   const [showLastRideModal, setShowLastRideModal] = useState(false);
+  const [weather, setWeather] = useState<WeatherInfo | null>(null);
+  const [convoyMembers, setConvoyMembers] = useState<ConvoyMember[]>([]);
+
+  useEffect(() => {
+    convoyService.onMembersUpdate((members) => {
+      setConvoyMembers(members.filter(m => m.id !== userId));
+    });
+  }, [userId]);
+
+  useEffect(() => {
+    if (liveLoc) {
+      convoyService.updateLocation(userId, liveLoc.latitude, liveLoc.longitude, liveLoc.speed || 0);
+    }
+  }, [liveLoc, userId]);
+
+  useEffect(() => {
+    if (!liveLoc || weather) return;
+    WeatherService.getLiveWeather(liveLoc.latitude, liveLoc.longitude).then(res => {
+      if (res) setWeather(res);
+    });
+  }, [liveLoc, weather]);
 
   const handleShowLastRide = async () => {
     const res = await StorageService.get<RideSession>(STORAGE_KEYS.LAST_RIDE);
@@ -128,9 +166,12 @@ export function RideMonitoringScreen(): React.JSX.Element {
       {/* ── MAP VIEW MODE ── */}
       {viewMode === 'map' && (
         <MapView
+          ref={mapRef}
+          key={isDark ? 'ride-map-dark' : 'ride-map-light'}
           provider={PROVIDER_DEFAULT}
           style={styles.map}
-          customMapStyle={pastelMapStyle}
+          customMapStyle={isDark ? darkMapStyle : lightMapStyle}
+          showsUserLocation={true}
           showsCompass={false}
           showsMyLocationButton={false}
           initialRegion={{
@@ -148,21 +189,34 @@ export function RideMonitoringScreen(): React.JSX.Element {
         >
           {/* Dynamic Route Line */}
           {breadcrumbs.length > 1 && (
-            <Polyline
-              coordinates={breadcrumbs}
-              strokeColor="#39FF14" // Electric Lime Green!
-              strokeWidth={6}
-            />
+            <>
+              <Polyline
+                coordinates={breadcrumbs}
+                strokeColor="rgba(57, 255, 20, 0.28)"
+                strokeWidth={12}
+                lineCap="round"
+                lineJoin="round"
+              />
+              <Polyline
+                coordinates={breadcrumbs}
+                strokeColor="#39FF14"
+                strokeWidth={5}
+                lineCap="round"
+                lineJoin="round"
+              />
+            </>
           )}
 
-          {/* Minimal User Location Marker */}
-          {liveLoc && (
+          {/* Convoy Members */}
+          {convoyMembers.map(member => (
             <Marker
-              coordinate={{ latitude: liveLoc.latitude, longitude: liveLoc.longitude }}
-              anchor={{ x: 0.5, y: 0.5 }}
-              image={require('../../assets/rider_marker.png')}
+              key={member.id}
+              coordinate={{ latitude: member.latitude, longitude: member.longitude }}
+              title={member.name}
+              description={`${Math.round(member.speed)} km/h`}
+              pinColor="violet"
             />
-          )}
+          ))}
         </MapView>
       )}
 
@@ -197,6 +251,46 @@ export function RideMonitoringScreen(): React.JSX.Element {
           </TouchableOpacity>
         </View>
 
+        {/* Convoy Fall-behind Warning */}
+        {convoyMembers.map(m => {
+           const dLat = (m.latitude - (liveLoc?.latitude || 0)) * 111;
+           const dLon = (m.longitude - (liveLoc?.longitude || 0)) * 111;
+           const dist = Math.sqrt(dLat*dLat + dLon*dLon);
+           if (dist > 2) {
+             return (
+               <View key={m.id} style={{ 
+                 backgroundColor: colors.surfacePrimary, 
+                 borderColor: colors.emergency,
+                 borderWidth: 2,
+                 padding: 16, 
+                 marginHorizontal: 20, 
+                 borderRadius: 16, 
+                 marginTop: 12,
+                 flexDirection: 'row',
+                 alignItems: 'center',
+                 elevation: 8,
+                 shadowColor: colors.emergency,
+                 shadowOffset: { width: 0, height: 4 },
+                 shadowOpacity: 0.3,
+                 shadowRadius: 8
+               }}>
+                 <View style={{ backgroundColor: `${colors.emergency}20`, padding: 10, borderRadius: 12, marginRight: 12 }}>
+                   <Ionicons name="warning" size={24} color={colors.emergency} />
+                 </View>
+                 <View style={{ flex: 1 }}>
+                   <Text style={[textStyles.headingSmall, { color: colors.emergency, marginBottom: 2 }]}>
+                     Rider Left Behind
+                   </Text>
+                   <Text style={[textStyles.bodySmall, { color: colors.textSecondary }]}>
+                     <Text style={{ fontWeight: 'bold', color: colors.textPrimary }}>{m.name}</Text> has dropped {dist.toFixed(1)} km behind!
+                   </Text>
+                 </View>
+               </View>
+             );
+           }
+           return null;
+        })}
+
         {viewMode === 'map' && (
           <View style={styles.etaPill}>
             <View style={styles.etaLeft}>
@@ -218,6 +312,20 @@ export function RideMonitoringScreen(): React.JSX.Element {
       {viewMode === 'cockpit' && (
         <View style={styles.cockpitContainer}>
           
+          {weather && (
+            <View style={[styles.weatherBanner, weather.isHazard && styles.weatherBannerHazard]}>
+              <View style={styles.weatherIconRow}>
+                <Ionicons name={weather.isHazard ? 'warning' : weather.iconName} size={24} color={weather.isHazard ? '#FFF' : colors.textPrimary} />
+                <Text style={[styles.weatherTempText, weather.isHazard && { color: '#FFF' }]}>
+                  {weather.temperature}°C  •  {weather.windSpeed} km/h
+                </Text>
+              </View>
+              <Text style={[styles.weatherDescText, weather.isHazard && { color: '#FFF', fontWeight: 'bold' }]}>
+                {weather.isHazard ? weather.hazardMessage : weather.description}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.statusBanner}>
             <Ionicons 
               name={isActive ? 'shield-checkmark' : 'bicycle'} 
@@ -247,8 +355,10 @@ export function RideMonitoringScreen(): React.JSX.Element {
               </View>
               <View style={styles.metricCard}>
                 <Text style={styles.metricLabel}>DURATION</Text>
-                <View style={styles.metricValueWrap}>
-                  <Text style={styles.metricValue}>{formatDuration(nav.elapsedSeconds)}</Text>
+                <View style={styles.metricDurationWrap}>
+                  <Text style={styles.metricDurationValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                    {formatDuration(nav.elapsedSeconds)}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -449,9 +559,40 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   cockpitContainer: {
     flex: 1,
-    paddingTop: 220,
+    paddingTop: 180,
     alignItems: 'center',
     paddingHorizontal: 20,
+  },
+  weatherBanner: {
+    width: '100%',
+    backgroundColor: colors.surfacePrimary,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  weatherBannerHazard: {
+    backgroundColor: colors.emergency,
+  },
+  weatherIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  weatherTempText: {
+    ...textStyles.labelLarge,
+    color: colors.textPrimary,
+  },
+  weatherDescText: {
+    ...textStyles.bodyMedium,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   statusBanner: {
     alignItems: 'center',
@@ -494,9 +635,21 @@ const getStyles = (colors: any) => StyleSheet.create({
     alignItems: 'flex-end',
     gap: 4,
   },
+  metricDurationWrap: {
+    width: '100%',
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   metricValue: {
     ...textStyles.numericLarge,
     color: colors.textPrimary,
+  },
+  metricDurationValue: {
+    ...textStyles.headingLarge,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   metricUnit: {
     fontSize: 12,
@@ -675,29 +828,5 @@ const getStyles = (colors: any) => StyleSheet.create({
     color: colors.safe,
     fontWeight: '700',
     fontSize: 12,
-  },
-  userMarkerWrap: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userMarkerGlow: {
-    position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  userMarkerCore: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: colors.surfacePrimary,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
   },
 });

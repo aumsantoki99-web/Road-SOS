@@ -62,6 +62,9 @@ export type RootStackParamList = {
   DeadManSwitch: { event: import('../services/crashDetection.service').CrashEvent };
   SosTriggered: { event: import('../services/crashDetection.service').CrashEvent; sosMessage?: string };
 
+  /** Convoy Mode */
+  ConvoySetup: undefined;
+
   /** Legal Screens */
   PrivacyPolicy: undefined;
   TermsConditions: undefined;

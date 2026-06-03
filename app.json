@@ -16,11 +16,13 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.aumus.road_sos",
+      "bundleIdentifier": "com.aumus.roadsos",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "RideSafe uses your location to monitor your ride and find nearby hospitals.",
         "NSLocationAlwaysUsageDescription": "RideSafe uses your location in the background to detect crashes and send emergency alerts.",
-        "NSMotionUsageDescription": "RideSafe uses motion sensors to detect potential crashes during your ride."
+        "NSMotionUsageDescription": "RideSafe uses motion sensors to detect potential crashes during your ride.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
         "googleMapsApiKey": "AIzaSyDfe4gCvQWVgOiPJiYsLmtsf-YPFM3GOwE"
@@ -64,7 +66,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "your-eas-project-id-here"
+        "projectId": "9b6762b4-e48a-4e27-878a-397461e853ea"
       }
     }
   }

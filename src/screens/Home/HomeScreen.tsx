@@ -490,6 +490,18 @@ export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
 
             <View style={{ height: spacing[3] }} />
 
+            {/* Convoy Mode Action */}
+            <ActionTile
+              icon="radio-outline"
+              label="Group Ride Radar"
+              sublabel="Sync live location"
+              color={colors.info}
+              onPress={() => nav.navigate('ConvoySetup' as never)}
+              hero
+            />
+
+            <View style={{ height: spacing[3] }} />
+
             {/* Secondary row */}
             <View style={styles.actionRow}>
               <ActionTile

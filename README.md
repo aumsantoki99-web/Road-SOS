@@ -16,7 +16,7 @@ Official download & guide page for Road-SOS (Resucel) — a React Native safety 
 - **Automated Crash Detection**: Utilizes device motion sensors (accelerometer/gyroscope) to detect potential accidents and trigger an SOS countdown.
 - **Smart Emergency Routing**: Automatically formats and routes emergency SMS messages with live GPS coordinates to pre-configured emergency contacts.
 - **Medical Intelligence Map**: Integrates with Google Maps to show live route tracking and plots nearby medical centers, with a specialized legend to highlight Trauma Centers versus regular hospitals.
-- **Secure Authentication**: Email and password authentication via Firebase, completely replacing less reliable phone OTP flows, ensuring user accounts are secure and accessible globally.
+- **Group Ride Radar (Convoy Mode)**: Syncs live rider coordinates over Firebase Firestore, displaying active convoy members on the map and firing distance warning alerts if any rider drops more than 2km behind.
 - **Fluid UI/UX**: Built with custom animations, glassmorphism UI components, high-contrast dark mode support, and premium skeleton loading screens.
 
 ---
@@ -27,7 +27,7 @@ Official download & guide page for Road-SOS (Resucel) — a React Native safety 
 - **Language**: TypeScript
 - **State Management & Routing**: [React Navigation](https://reactnavigation.org/)
 - **Maps Integration**: `react-native-maps` with Google Maps SDK
-- **Backend & Auth**: [Firebase Authentication](https://firebase.google.com/docs/auth)
+- **Backend & Auth**: [Firebase Authentication](https://firebase.google.com/docs/auth) and **Firebase Firestore** for real-time multiplayer sync.
 - **Local Storage**: `expo-secure-store`
 - **Native Build System**: Gradle (Android)
 

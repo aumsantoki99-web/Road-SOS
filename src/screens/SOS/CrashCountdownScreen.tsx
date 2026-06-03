@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View, Animated, Easing } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View, Animated, Easing, Vibration } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { AlertController } from '../../services/alertController';

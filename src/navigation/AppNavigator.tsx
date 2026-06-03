@@ -45,6 +45,7 @@ import { CrashCountdownScreen } from '../screens/SOS/CrashCountdownScreen';
 import { DeadManSwitchScreen } from '../screens/SOS/DeadManSwitchScreen';
 import { SosTriggeredScreen } from '../screens/SOS/SosTriggeredScreen';
 import { ProfileScreen } from '../screens/Settings/ProfileScreen';
+import { ConvoySetupScreen } from '../screens/Convoy/ConvoySetupScreen';
 
 import { PrivacyPolicyScreen } from '../screens/Legal/PrivacyPolicyScreen';
 import { TermsConditionsScreen } from '../screens/Legal/TermsConditionsScreen';
@@ -251,9 +252,19 @@ export function AppNavigator(): React.JSX.Element {
               headerShown: false,
             }}
           />
+
+      {/* ── Convoy Mode ──────────────────────────────────────────────── */}
+          <Stack.Screen
+            name="ConvoySetup"
+            component={ConvoySetupScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
         </>
       )}
     </Stack.Navigator>
   );
 }
-
