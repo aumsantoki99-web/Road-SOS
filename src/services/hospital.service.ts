@@ -59,20 +59,19 @@ export function haversineKm(from: UserLocation, to: UserLocation): number {
 }
 
 function buildQuery(location: UserLocation, radiusMeters: number): string {
-  return `[out:json][timeout:15];
+  return `[out:json][timeout:25];
 (
-  node["amenity"="hospital"](around:${radiusMeters},${location.latitude},${location.longitude});
-  way["amenity"="hospital"](around:${radiusMeters},${location.latitude},${location.longitude});
-  node["amenity"="clinic"](around:${radiusMeters},${location.latitude},${location.longitude});
-  way["amenity"="clinic"](around:${radiusMeters},${location.latitude},${location.longitude});
-  node["healthcare"="hospital"](around:${radiusMeters},${location.latitude},${location.longitude});
-  way["healthcare"="hospital"](around:${radiusMeters},${location.latitude},${location.longitude});
+  node["amenity"~"hospital|clinic|doctors"](around:${radiusMeters},${location.latitude},${location.longitude});
+  way["amenity"~"hospital|clinic|doctors"](around:${radiusMeters},${location.latitude},${location.longitude});
   node["amenity"="police"](around:${radiusMeters},${location.latitude},${location.longitude});
   way["amenity"="police"](around:${radiusMeters},${location.latitude},${location.longitude});
-  node["shop"="car_repair"](around:${radiusMeters},${location.latitude},${location.longitude});
-  way["shop"="car_repair"](around:${radiusMeters},${location.latitude},${location.longitude});
+  node["emergency"="24h"](around:${radiusMeters},${location.latitude},${location.longitude});
+  node["shop"="car_repair"]["service"="towing"](around:${radiusMeters},${location.latitude},${location.longitude});
+  way["shop"="car_repair"]["service"="towing"](around:${radiusMeters},${location.latitude},${location.longitude});
+  node["amenity"="vehicle_inspection"](around:${radiusMeters},${location.latitude},${location.longitude});
+  way["amenity"="vehicle_inspection"](around:${radiusMeters},${location.latitude},${location.longitude});
 );
-out center tags;`;
+out center;`;
 }
 
 const ACTUAL_HOSPITAL_PHONES: Record<string, string> = {
@@ -141,11 +140,60 @@ function adjustMockHospital(hospital: Hospital, index: number, location: UserLoc
   };
 }
 
+function getLat(element: OverpassElement): number | undefined {
+  return element.type === 'way' ? element.center?.lat : element.lat;
+}
+
+function getLon(element: OverpassElement): number | undefined {
+  return element.type === 'way' ? element.center?.lon : element.lon;
+}
+
+function getMarkerConfig(tags: Record<string, string | undefined>): {
+  serviceType: 'hospital' | 'police' | 'towing';
+  isEmergencyCenter: boolean;
+} {
+  if (tags.emergency === '24h' || tags.emergency === 'yes') {
+    return { serviceType: 'hospital', isEmergencyCenter: true };
+  }
+
+  if (
+    tags.amenity === 'hospital' ||
+    tags.amenity === 'clinic' ||
+    tags.amenity === 'doctors'
+  ) {
+    return { serviceType: 'hospital', isEmergencyCenter: false };
+  }
+
+  if (tags.amenity === 'police') {
+    return { serviceType: 'police', isEmergencyCenter: false };
+  }
+
+  if (
+    tags.shop === 'car_repair' ||
+    tags.amenity === 'vehicle_inspection' ||
+    tags.service === 'towing' ||
+    tags.towing === 'yes'
+  ) {
+    return { serviceType: 'towing', isEmergencyCenter: false };
+  }
+
+  return { serviceType: 'hospital', isEmergencyCenter: false };
+}
+
 function parseHospital(element: OverpassElement, userLocation: UserLocation): Hospital | null {
   const tags = element.tags ?? {};
-  const latitude = element.lat ?? element.center?.lat;
-  const longitude = element.lon ?? element.center?.lon;
-  const name = tags.name?.trim();
+  const latitude = getLat(element);
+  const longitude = getLon(element);
+  const { serviceType, isEmergencyCenter } = getMarkerConfig(tags);
+  const name = tags.name?.trim() || (
+    serviceType === 'police'
+      ? 'Police Station'
+      : serviceType === 'towing'
+      ? 'Towing Service'
+      : isEmergencyCenter
+      ? '24H Emergency'
+      : 'Clinic / Hospital'
+  );
 
   if (!name || latitude === undefined || longitude === undefined) return null;
 
@@ -167,13 +215,6 @@ function parseHospital(element: OverpassElement, userLocation: UserLocation): Ho
   const rawPhone = tags.phone || tags['contact:phone'] || tags['contact:mobile'] || '';
   const phone = resolveActualPhone(name, rawPhone || element.id);
 
-  let serviceType: 'hospital' | 'police' | 'towing' = 'hospital';
-  if (tags.amenity === 'police') {
-    serviceType = 'police';
-  } else if (tags.shop === 'car_repair' || tags.towing === 'yes') {
-    serviceType = 'towing';
-  }
-
   return {
     id: `osm_${element.id}`,
     name,
@@ -182,11 +223,8 @@ function parseHospital(element: OverpassElement, userLocation: UserLocation): Ho
     distanceKm,
     etaMinutes,
     isEmergencyCenter:
-      serviceType === 'hospital' && (
-        tags.emergency === 'yes' ||
-        tags.amenity === 'hospital' ||
-        tags['healthcare:speciality']?.includes('emergency') === true
-      ),
+      isEmergencyCenter ||
+      (serviceType === 'hospital' && tags['healthcare:speciality']?.includes('emergency') === true),
     latitude,
     longitude,
     specialties,
@@ -208,6 +246,7 @@ async function queryOverpass(location: UserLocation, radiusMeters: number): Prom
       const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
       console.log(`[HospitalService] GET ${endpoint}`);
+      console.log('[HospitalService] Query URL:', url);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -226,7 +265,7 @@ async function queryOverpass(location: UserLocation, radiusMeters: number): Prom
 
       const json = (await response.json()) as { elements?: OverpassElement[] };
       const elements = json.elements ?? [];
-      console.log(`[HospitalService] ${endpoint} → ${elements.length} elements`);
+      console.log('[HospitalService] Overpass results:', elements.length);
 
       const seen = new Set<string>();
       const hospitals = elements
